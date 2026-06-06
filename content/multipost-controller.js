@@ -86,7 +86,7 @@
         this.view.updateProgress(
           index,
           targets.length,
-          `Публикация: ${target.name}`
+          `Адаптация формы: ${target.name}`
         );
 
         try {
@@ -226,7 +226,7 @@
         return false;
       }
 
-      this.selectedCategories.set(category.id, category.name);
+      this.selectedCategories.set(category.id, category);
       this.renderSelection();
       return true;
     }
@@ -243,9 +243,9 @@
     }
 
     getSelectedTargets() {
-      return [...this.selectedCategories.entries()].map(([nodeId, name]) => ({
-        nodeId,
-        name
+      return [...this.selectedCategories.values()].map((category) => ({
+        ...category,
+        nodeId: category.id
       }));
     }
   };

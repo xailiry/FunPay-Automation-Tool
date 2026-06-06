@@ -23,22 +23,38 @@ export function extractGameId(html) {
 
 export function extractCategories(html) {
   const categoriesById = new Map();
-  const anchorPattern =
-    /<a\b[^>]*href=["'](?:https?:\/\/(?:www\.)?funpay\.com)?\/lots\/(\d+)\/?["'][^>]*>([\s\S]*?)<\/a>/gi;
-  let match;
+  const groupPattern =
+    /<div\b[^>]*class=["'][^"']*\bpromo-game-item\b[^"']*["'][^>]*>[\s\S]*?<div\b[^>]*class=["'][^"']*\bgame-title\b[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/div>\s*<ul\b[^>]*>([\s\S]*?)<\/ul>[\s\S]*?<\/div>/gi;
+  let groupMatch;
 
-  while ((match = anchorPattern.exec(html))) {
-    const id = match[1];
-    const name = decodeHtml(stripHtml(match[2])).replace(/\s+/g, ' ').trim();
+  while ((groupMatch = groupPattern.exec(html))) {
+    const game = cleanText(groupMatch[1]);
+    const categoryPattern =
+      /<a\b[^>]*href=["'](?:https?:\/\/(?:www\.)?funpay\.com)?\/lots\/(\d+)\/?["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let categoryMatch;
 
-    if (name && !categoriesById.has(id)) {
-      categoriesById.set(id, { id, name });
+    while ((categoryMatch = categoryPattern.exec(groupMatch[2]))) {
+      const id = categoryMatch[1];
+      const section = cleanText(categoryMatch[2]);
+
+      if (!game || !section || categoriesById.has(id)) continue;
+
+      categoriesById.set(id, {
+        id,
+        game,
+        section,
+        name: `${game} · ${section}`
+      });
     }
   }
 
   return [...categoriesById.values()].sort((a, b) =>
     a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' })
   );
+}
+
+function cleanText(value) {
+  return decodeHtml(stripHtml(value)).replace(/\s+/g, ' ').trim();
 }
 
 function stripHtml(value) {

@@ -1,6 +1,7 @@
 import { extractCategories } from './parsers.js';
 
 const CATEGORY_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const CATEGORY_CACHE_VERSION = 2;
 
 export class CategoryService {
   constructor({ client, storage, now = Date.now }) {
@@ -12,11 +13,16 @@ export class CategoryService {
   async getCategories(forceRefresh = false) {
     const cached = await this.storage.get([
       'funpayCategories',
-      'funpayCategoriesUpdatedAt'
+      'funpayCategoriesUpdatedAt',
+      'funpayCategoriesVersion'
     ]);
     const updatedAt = Number(cached.funpayCategoriesUpdatedAt) || 0;
 
-    if (!forceRefresh && this.isCacheFresh(cached.funpayCategories, updatedAt)) {
+    if (
+      !forceRefresh &&
+      cached.funpayCategoriesVersion === CATEGORY_CACHE_VERSION &&
+      this.isCacheFresh(cached.funpayCategories, updatedAt)
+    ) {
       return {
         categories: cached.funpayCategories,
         updatedAt,
@@ -36,7 +42,8 @@ export class CategoryService {
     const nextUpdatedAt = this.now();
     await this.storage.set({
       funpayCategories: categories,
-      funpayCategoriesUpdatedAt: nextUpdatedAt
+      funpayCategoriesUpdatedAt: nextUpdatedAt,
+      funpayCategoriesVersion: CATEGORY_CACHE_VERSION
     });
 
     return {
@@ -50,6 +57,9 @@ export class CategoryService {
     return (
       Array.isArray(categories) &&
       categories.length > 0 &&
+      categories.every((category) =>
+        Boolean(category.id && category.game && category.section && category.name)
+      ) &&
       this.now() - updatedAt < CATEGORY_CACHE_TTL_MS
     );
   }

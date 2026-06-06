@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FunPay Automation Tool",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Авто-поднятие объявлений и управляемый мультипостинг для FunPay.",
   "permissions": [
     "storage",
@@ -24,6 +24,7 @@
       ],
       "js": [
         "content/shared.js",
+        "content/form-adapter.js",
         "content/offer-client.js",
         "content/multipost-view.js",
         "content/multipost-controller.js",

@@ -24,14 +24,47 @@ test('extracts account, category and game identifiers', () => {
 
 test('extracts unique, decoded and sorted category names', () => {
   const html = `
-    <a href="/lots/2/"><span>Яндекс&nbsp;Плюс</span></a>
-    <a href="https://funpay.com/lots/1/">ChatGPT &amp; Claude</a>
-    <a href="/lots/2/">Duplicate</a>
+    <div class="promo-game-item">
+      <div class="game-title"><a href="/lots/10/">ChatGPT</a></div>
+      <ul>
+        <li><a href="/lots/10/">Аккаунты</a></li>
+        <li><a href="/lots/11/">Прочее</a></li>
+      </ul>
+    </div>
+    <div class="promo-game-item">
+      <div class="game-title"><a href="/lots/20/">Claude &amp; AI</a></div>
+      <ul>
+        <li><a href="/lots/20/">Аккаунты</a></li>
+        <li><a href="/lots/21/"><span>Услуги&nbsp;Pro</span></a></li>
+      </ul>
+    </div>
   `;
 
   assert.deepEqual(extractCategories(html), [
-    { id: '2', name: 'Яндекс Плюс' },
-    { id: '1', name: 'ChatGPT & Claude' }
+    {
+      id: '10',
+      game: 'ChatGPT',
+      section: 'Аккаунты',
+      name: 'ChatGPT · Аккаунты'
+    },
+    {
+      id: '11',
+      game: 'ChatGPT',
+      section: 'Прочее',
+      name: 'ChatGPT · Прочее'
+    },
+    {
+      id: '20',
+      game: 'Claude & AI',
+      section: 'Аккаунты',
+      name: 'Claude & AI · Аккаунты'
+    },
+    {
+      id: '21',
+      game: 'Claude & AI',
+      section: 'Услуги Pro',
+      name: 'Claude & AI · Услуги Pro'
+    }
   ]);
 });
 

@@ -79,8 +79,8 @@
         return;
       }
 
-      for (const [id, name] of selectedCategories) {
-        list.appendChild(createSelectedCategory(id, name, onRemove));
+      for (const [id, category] of selectedCategories) {
+        list.appendChild(createSelectedCategory(id, category.name, onRemove));
       }
     }
 
@@ -137,8 +137,8 @@
           <div class="fp-panel__eyebrow">FunPay Automation Tool</div>
           <h2 id="fp-panel-title" class="fp-panel__title">Дополнительные категории</h2>
           <p class="fp-panel__description">
-            При сохранении расширение последовательно создаст копии в выбранных категориях,
-            а затем сохранит текущее объявление.
+            Расширение загрузит форму каждой категории, перенесет совместимые поля
+            и не отправит параметры, которых в целевой форме нет.
           </p>
         </div>
         <button class="fp-icon-button" type="button" id="fp-refresh-categories" title="Обновить категории">
@@ -154,7 +154,7 @@
             id="fp-category-search"
             type="search"
             autocomplete="off"
-            placeholder="Название игры или услуги"
+            placeholder="Например, Gemini или Claude · Услуги"
           >
           <div class="fp-list-meta" id="fp-category-meta">Загрузка категорий...</div>
           <div class="fp-category-list" id="fp-category-list" role="list"></div>
