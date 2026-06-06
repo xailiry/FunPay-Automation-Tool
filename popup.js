@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     bumpActivityText.textContent =
-      `Поднято ${result.successCount}, пропущено ${result.skippedCount}, ошибок ${result.failedCount}`;
+      `Поднято ${result.successCount}, на кулдауне ${result.skippedCount}, ошибок ${result.failedCount}`;
     bumpActivityTime.textContent = formatTime(result.finishedAt);
   }
 

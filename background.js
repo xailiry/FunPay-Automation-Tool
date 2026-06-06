@@ -57,11 +57,16 @@ async function getExtensionState() {
     'lastBumpResult',
     'lastMultiPostResult'
   ]);
+  const lastBumpResult = normalizeStoredBumpResult(stored.lastBumpResult);
+
+  if (lastBumpResult !== stored.lastBumpResult) {
+    await chrome.storage.local.set({ lastBumpResult });
+  }
 
   return {
     autoBumpEnabled: Boolean(stored.autoBumpEnabled),
     bumpRunning: Boolean(activeBumpPromise),
-    lastBumpResult: stored.lastBumpResult || null,
+    lastBumpResult,
     lastMultiPostResult: stored.lastMultiPostResult || null
   };
 }
@@ -264,24 +269,27 @@ function classifyActionResponse(nodeId, response) {
     };
   }
 
-  const errorMessage = normalizeMessage(data.error || data.message || data.msg);
+  const errorMessage = extractResponseMessage(data);
   const explicitlyFailed =
     data.success === false ||
     data.status === 'error' ||
     Boolean(data.error);
 
   if (explicitlyFailed) {
+    const isSilentRejection = !errorMessage;
+
     return {
       nodeId,
-      status: looksLikeCooldown(errorMessage) ? 'skipped' : 'failed',
-      message: errorMessage || 'Операция отклонена FunPay'
+      status: isSilentRejection || looksLikeCooldown(errorMessage) ? 'skipped' : 'failed',
+      message: errorMessage || 'Уже поднято или действует ограничение по времени',
+      response: createResponseDiagnostic(data)
     };
   }
 
   return {
     nodeId,
     status: 'success',
-    message: normalizeMessage(data.message || data.msg) || 'Объявления подняты'
+    message: extractResponseMessage(data) || 'Объявления подняты'
   };
 }
 
@@ -290,6 +298,37 @@ function createBumpResult(status, startedAt, results) {
     status,
     startedAt,
     finishedAt: Date.now(),
+    successCount: results.filter((item) => item.status === 'success').length,
+    skippedCount: results.filter((item) => item.status === 'skipped').length,
+    failedCount: results.filter((item) => item.status === 'failed').length,
+    results
+  };
+}
+
+function normalizeStoredBumpResult(result) {
+  if (!result || !Array.isArray(result.results)) return result || null;
+
+  let changed = false;
+  const results = result.results.map((item) => {
+    if (
+      item.status === 'failed' &&
+      item.message === 'Операция отклонена FunPay'
+    ) {
+      changed = true;
+      return {
+        ...item,
+        status: 'skipped',
+        message: 'Уже поднято или действует ограничение по времени'
+      };
+    }
+
+    return item;
+  });
+
+  if (!changed) return result;
+
+  return {
+    ...result,
     successCount: results.filter((item) => item.status === 'success').length,
     skippedCount: results.filter((item) => item.status === 'skipped').length,
     failedCount: results.filter((item) => item.status === 'failed').length,
@@ -409,8 +448,45 @@ function normalizeMessage(value) {
   return '';
 }
 
+function extractResponseMessage(data) {
+  const candidates = [
+    data.message,
+    data.msg,
+    data.error_description,
+    data.error_message,
+    typeof data.error === 'string' || typeof data.error === 'object'
+      ? data.error
+      : null
+  ];
+
+  for (const candidate of candidates) {
+    const message = normalizeMessage(candidate);
+    if (message) return message;
+  }
+
+  return '';
+}
+
+function createResponseDiagnostic(data) {
+  const diagnostic = {};
+
+  for (const key of ['success', 'status', 'error', 'code']) {
+    const value = data[key];
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      value === null
+    ) {
+      diagnostic[key] = value;
+    }
+  }
+
+  return diagnostic;
+}
+
 function looksLikeCooldown(message) {
-  return /час|минут|секунд|поднять|подняти|cooldown|later|wait/i.test(message);
+  return /уже|ранее|час|минут|секунд|подня|повтор|огранич|cooldown|later|wait|raised/i.test(message);
 }
 
 function delay(ms) {
