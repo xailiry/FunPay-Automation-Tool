@@ -455,10 +455,48 @@
 }
 
 .fp-draft-check input {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  opacity: 0 !important;
+  white-space: nowrap !important;
+}
+
+.fp-draft-check span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.fp-draft-check span::before {
+  display: grid;
   width: 16px;
   height: 16px;
-  margin: 0;
-  accent-color: #d89b19;
+  flex: 0 0 16px;
+  place-items: center;
+  border: 1px solid #bfc5ca;
+  border-radius: 3px;
+  background: #fff;
+  color: #fff;
+  content: "";
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.fp-draft-check input:checked + span::before {
+  border-color: #c88b0e;
+  background: #d89b19;
+  content: "✓";
+}
+
+.fp-draft-check input:focus-visible + span::before {
+  outline: 2px solid rgba(216, 155, 25, 0.38);
+  outline-offset: 2px;
 }
 
 .fp-modal__footer {

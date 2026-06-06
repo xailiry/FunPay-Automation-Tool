@@ -170,27 +170,38 @@
   }
 
   function getLanguageKey(control) {
-    const hint = [
+    const identifierHint = [
       control.name,
       control.id,
       control.getAttribute?.('lang'),
-      control.closest?.('[lang]')?.getAttribute('lang'),
-      control.closest?.('.tab-pane')?.id,
-      ...getControlLabels(control)
+      control.closest?.('.tab-pane')?.id
     ]
       .filter(Boolean)
       .join(' ')
       .toLocaleLowerCase('ru');
+    const identifierLanguage = detectLanguage(identifierHint);
 
-    if (/(?:^|[^a-z])(ru|rus|russian)(?:[^a-z]|$)|по-русски|русск/i.test(hint)) {
-      return 'ru';
-    }
+    if (identifierLanguage) return identifierLanguage;
 
+    const labelLanguage = detectLanguage(
+      getControlLabels(control).join(' ').toLocaleLowerCase('ru')
+    );
+    if (labelLanguage) return labelLanguage;
+
+    const localLanguage = control
+      .closest?.('[lang]:not(html)')
+      ?.getAttribute('lang');
+    return detectLanguage(localLanguage || '');
+  }
+
+  function detectLanguage(hint) {
     if (/(?:^|[^a-z])(en|eng|english)(?:[^a-z]|$)|по-английски|английск/i.test(hint)) {
       return 'en';
     }
 
-    return null;
+    return /(?:^|[^a-z])(ru|rus|russian)(?:[^a-z]|$)|по-русски|русск/i.test(hint)
+      ? 'ru'
+      : null;
   }
 
   function getControlLabels(control) {

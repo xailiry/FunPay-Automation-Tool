@@ -316,6 +316,10 @@ test('adapts the real Claude services form without losing localized fields', () 
     nodeId: '4187',
     section: 'Услуги'
   });
+  const draft = adapter.createDraft(sourceForm, targetForm, {
+    nodeId: '4187',
+    section: 'Услуги'
+  });
 
   assert.deepEqual(formData.getAll('csrf_token'), ['target-token']);
   assert.deepEqual(formData.getAll('form_created_at'), ['created-at']);
@@ -338,6 +342,34 @@ test('adapts the real Claude services form without losing localized fields', () 
   assert.equal(formData.has('amount'), false);
   assert.equal(formData.has('auto_delivery'), false);
   assert.equal(report.forcedPersistent, true);
+  assert.equal(
+    draft.find((field) => field.name === 'fields[summary][ru]').language,
+    'ru'
+  );
+  assert.equal(
+    draft.find((field) => field.name === 'fields[summary][en]').language,
+    'en'
+  );
+  assert.match(
+    draft.find((field) => field.name === 'fields[summary][ru]').label,
+    /Русский$/
+  );
+  assert.match(
+    draft.find((field) => field.name === 'fields[summary][en]').label,
+    /English$/
+  );
+  assert.equal(
+    draft.find((field) => field.name === 'price').language,
+    null
+  );
+  assert.equal(
+    draft.find((field) => field.name === 'active').language,
+    null
+  );
+  assert.equal(
+    draft.find((field) => field.name === 'deactivate_after_sale').language,
+    null
+  );
 });
 
 function createForm(elements) {
