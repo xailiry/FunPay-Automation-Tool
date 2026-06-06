@@ -43,7 +43,7 @@
         targetCategory
       });
       applyOverrides(formData, targetForm, overrides);
-      removeInactiveDeliveryGoods(formData, targetForm);
+      applyDeliveryFieldRules(formData, targetForm);
 
       formData.set('node_id', targetCategory.nodeId);
 
@@ -161,6 +161,7 @@
     const patterns = [
       ['autoDelivery', /автоматическ.{0,15}выдач|auto.{0,15}deliver/],
       ['deliveryGoods', /(^|[^\p{L}])товар(?:ы|ов)?([^\p{L}]|$)|(^|[^a-z])goods?([^a-z]|$)|(^|[^a-z])products?([^a-z]|$)/u],
+      ['stock', /налич|(^|[^a-z])(stock|amount|quantity)([^a-z]|$)/],
       ['buyerMessage', /сообщени.{0,20}покупател|buyer.{0,20}message|payment.{0,20}message/],
       ['summary', /кратк.{0,15}описан|short.{0,15}description|summary|offer.{0,10}title/],
       ['description', /подробн.{0,15}описан|detailed.{0,15}description|description|detail/],
@@ -421,7 +422,7 @@
     return true;
   }
 
-  function removeInactiveDeliveryGoods(formData, targetForm) {
+  function applyDeliveryFieldRules(formData, targetForm) {
     const groups = groupFieldsByName(getUserFields(targetForm));
     const autoDeliveryEntry = [...groups].find(([, controls]) =>
       getGroupSemanticKey(controls) === 'autoDelivery'
@@ -441,10 +442,13 @@
       .getAll(autoDeliveryName)
       .some((value) => enabledValues.has(String(value)));
 
-    if (autoDeliveryEnabled) return;
-
     for (const [name, controls] of groups) {
-      if (getGroupSemanticKey(controls) === 'deliveryGoods') {
+      const semanticKey = getGroupSemanticKey(controls);
+
+      if (
+        (!autoDeliveryEnabled && semanticKey === 'deliveryGoods') ||
+        (autoDeliveryEnabled && semanticKey === 'stock')
+      ) {
         formData.delete(name);
       }
     }

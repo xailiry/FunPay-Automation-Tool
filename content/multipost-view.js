@@ -407,22 +407,27 @@
     const goodsFields = modal.querySelectorAll(
       '[data-draft-semantic="deliveryGoods"]'
     );
+    const stockFields = modal.querySelectorAll(
+      '[data-draft-semantic="stock"]'
+    );
 
-    if (!autoDelivery || goodsFields.length === 0) return;
+    if (!autoDelivery) return;
 
-    const updateGoodsVisibility = () => {
-      const hidden = !autoDelivery.checked;
-
-      for (const field of goodsFields) {
+    const setFieldsHidden = (fields, hidden) => {
+      for (const field of fields) {
         field.hidden = hidden;
         field.querySelectorAll('[data-draft-name]').forEach((control) => {
           control.disabled = hidden;
         });
       }
     };
+    const updateDependentFields = () => {
+      setFieldsHidden(goodsFields, !autoDelivery.checked);
+      setFieldsHidden(stockFields, autoDelivery.checked);
+    };
 
-    autoDelivery.addEventListener('change', updateGoodsVisibility);
-    updateGoodsVisibility();
+    autoDelivery.addEventListener('change', updateDependentFields);
+    updateDependentFields();
   }
 
   function getDraftModalElements(modal) {
