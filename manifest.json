@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "FunPay Automator Pro",
+  "version": "2.0",
+  "description": "Автоматическое поднятие объявлений и продвинутый мульти-постинг",
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "*://*.funpay.com/*",
+    "*://funpay.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.funpay.com/*", "*://funpay.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

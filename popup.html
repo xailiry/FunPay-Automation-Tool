@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="fp-container">
+      <header class="fp-header">
+        <h1 class="fp-brand">FunPay Pro</h1>
+        <p class="fp-tagline">Automated listings & elevation.</p>
+      </header>
+      
+      <main class="fp-main">
+        <section class="fp-section">
+            <div class="fp-control-group">
+                <div class="fp-text-block">
+                    <h2 class="fp-heading">Авто-поднятие</h2>
+                    <p class="fp-body-text">Каждые 4 часа расширение будет поднимать ваши активные лоты в фоновом режиме.</p>
+                </div>
+                <label class="fp-toggle">
+                    <input type="checkbox" id="autoBumpToggle">
+                    <span class="fp-toggle-mark"></span>
+                </label>
+            </div>
+        </section>
+
+        <section class="fp-section">
+            <button id="bumpNowBtn" class="fp-button">Поднять сейчас</button>
+            <div id="bumpStatus" class="fp-status"></div>
+        </section>
+
+        <section class="fp-section fp-section-bottom">
+            <h2 class="fp-heading">Мульти-постинг</h2>
+            <p class="fp-body-text">Откройте страницу редактирования объявления, чтобы воспользоваться панелью дублирования.</p>
+        </section>
+      </main>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
