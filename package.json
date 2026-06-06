@@ -1,0 +1,14 @@
+{
+  "name": "funpay-automation-tool",
+  "version": "2.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test": "node --test",
+    "verify": "npm run check && npm test"
+  }
+}

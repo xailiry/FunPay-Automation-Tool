@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FunPay Automation Tool",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Авто-поднятие объявлений и управляемый мультипостинг для FunPay.",
   "permissions": [
     "storage",
@@ -13,7 +13,8 @@
     "https://*.funpay.com/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -21,7 +22,13 @@
         "https://funpay.com/lots/offer*",
         "https://*.funpay.com/lots/offer*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content/shared.js",
+        "content/offer-client.js",
+        "content/multipost-view.js",
+        "content/multipost-controller.js",
+        "content.js"
+      ],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

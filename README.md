@@ -29,7 +29,34 @@
 
 ## Структура
 
-- `background.js` — расписание, авто-поднятие, кэш категорий и состояние операций;
-- `content.js` / `content.css` — панель мультипостинга на странице объявления;
+- `background.js` — тонкий entrypoint service worker и маршрутизация сообщений;
+- `background/` — клиент FunPay, сервисы, парсеры и классификация результатов;
+- `content.js`, `content/` и `content.css` — entrypoint, Controller/View/Client и
+  стили панели мультипостинга;
 - `popup.html` / `popup.css` / `popup.js` — управление расширением и история;
+- `tests/` — unit-тесты парсеров и фоновых сервисов;
 - `manifest.json` — конфигурация Manifest V3.
+
+## Проверка
+
+Проект не требует сборки или runtime-зависимостей. Для локальной проверки нужен
+Node.js:
+
+```powershell
+npm run verify
+```
+
+Команда проверяет синтаксис всех JavaScript-файлов, ссылки из manifest и запускает
+unit-тесты. Тот же набор автоматически выполняется в GitHub Actions для `main` и
+pull request.
+
+## Архитектурные решения
+
+- Service worker использует ES-модули и разделяет транспорт, parsing и бизнес-логику.
+- `BumpService` и `CategoryService` получают зависимости через конструктор, поэтому
+  тестируются без Chrome и реальных запросов к FunPay.
+- Content scripts загружаются в одном изолированном Chrome-контексте и разделены на
+  `Controller`, `View` и HTTP-клиент через единый namespace расширения.
+- Небольшие helpers сетевого ответа намеренно продублированы между service worker и
+  content script: эти части работают в разных контекстах Chrome, а общий runtime-модуль
+  потребовал бы сборщика или глобального namespace.

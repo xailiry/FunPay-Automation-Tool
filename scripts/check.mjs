@@ -1,0 +1,50 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const rootPath = fileURLToPath(new URL('../', import.meta.url));
+const ignoredDirectories = new Set(['.git', 'node_modules']);
+const javascriptFiles = findJavaScriptFiles(rootPath);
+
+for (const file of javascriptFiles) {
+  execFileSync(process.execPath, ['--check', file], { stdio: 'inherit' });
+}
+
+const manifestPath = join(rootPath, 'manifest.json');
+const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+const referencedAssets = [
+  manifest.background.service_worker,
+  manifest.action.default_popup,
+  ...Object.values(manifest.icons),
+  ...manifest.content_scripts.flatMap((script) => [
+    ...script.js,
+    ...script.css
+  ])
+];
+
+for (const asset of referencedAssets) {
+  if (!existsSync(join(rootPath, asset))) {
+    throw new Error(`Manifest references missing asset: ${asset}`);
+  }
+}
+
+console.log(`Checked ${javascriptFiles.length} JavaScript files.`);
+console.log('Manifest and referenced assets are valid.');
+
+function findJavaScriptFiles(directory) {
+  const files = [];
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (ignoredDirectories.has(entry.name)) continue;
+
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...findJavaScriptFiles(path));
+    } else if (extname(entry.name) === '.js' || extname(entry.name) === '.mjs') {
+      files.push(path);
+    }
+  }
+
+  return files;
+}

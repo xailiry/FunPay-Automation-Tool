@@ -69,6 +69,11 @@ document.addEventListener('DOMContentLoaded', () => {
   async function refreshState() {
     try {
       const state = await sendRuntimeMessage({ action: 'getExtensionState' });
+
+      if (!state?.ok) {
+        throw new Error(state?.error || 'Не удалось получить состояние расширения.');
+      }
+
       autoBumpToggle.checked = Boolean(state.autoBumpEnabled);
       setBumpRunning(Boolean(state.bumpRunning));
       renderBumpActivity(state.lastBumpResult);

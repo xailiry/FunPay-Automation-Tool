@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { BumpService } from '../background/bump-service.js';
+
+test('runs one bump operation at a time and stores its result', async () => {
+  const writes = [];
+  const notifications = [];
+  let releaseHome;
+
+  const homeGate = new Promise((resolve) => {
+    releaseHome = resolve;
+  });
+  const client = {
+    async getHomePage() {
+      await homeGate;
+      return { text: '<a href="/users/10/">User</a>' };
+    },
+    async getProfilePage() {
+      return { text: '<a href="/lots/20/">Category</a>' };
+    },
+    async getCategoryPage() {
+      return { text: '<div data-game="30"></div>' };
+    },
+    async raiseCategory() {
+      return { json: { success: true, message: 'Raised' } };
+    }
+  };
+  const service = new BumpService({
+    client,
+    storage: {
+      async set(value) {
+        writes.push(value);
+      }
+    },
+    notify: async (title, message) => {
+      notifications.push({ title, message });
+    },
+    wait: async () => {},
+    now: () => 100
+  });
+
+  const firstRun = service.run();
+  const secondRun = service.run();
+
+  assert.equal(firstRun, secondRun);
+  assert.equal(service.isRunning, true);
+
+  releaseHome();
+  const result = await firstRun;
+
+  assert.equal(result.successCount, 1);
+  assert.equal(result.failedCount, 0);
+  assert.equal(service.isRunning, false);
+  assert.equal(writes.length, 2);
+  assert.equal(notifications.length, 1);
+});
