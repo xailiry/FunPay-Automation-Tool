@@ -1,41 +1,73 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="ru">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FunPay Automation Tool</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="fp-container">
-      <header class="fp-header">
-        <h1 class="fp-brand">FunPay Pro</h1>
-        <p class="fp-tagline">Automated listings & elevation.</p>
-      </header>
-      
-      <main class="fp-main">
-        <section class="fp-section">
-            <div class="fp-control-group">
-                <div class="fp-text-block">
-                    <h2 class="fp-heading">Авто-поднятие</h2>
-                    <p class="fp-body-text">Каждые 4 часа расширение будет поднимать ваши активные лоты в фоновом режиме.</p>
-                </div>
-                <label class="fp-toggle">
-                    <input type="checkbox" id="autoBumpToggle">
-                    <span class="fp-toggle-mark"></span>
-                </label>
-            </div>
-        </section>
+  <header class="app-header">
+    <div class="brand-mark" aria-hidden="true">F</div>
+    <div>
+      <h1>FunPay Automation</h1>
+      <p>Инструменты продавца</p>
+    </div>
+  </header>
 
-        <section class="fp-section">
-            <button id="bumpNowBtn" class="fp-button">Поднять сейчас</button>
-            <div id="bumpStatus" class="fp-status"></div>
-        </section>
+  <main>
+    <section class="card">
+      <div class="control-row">
+        <div class="control-copy">
+          <h2>Авто-поднятие</h2>
+          <p>Проверять активные категории каждые 4 часа.</p>
+        </div>
+        <label class="switch" title="Включить авто-поднятие">
+          <input type="checkbox" id="auto-bump-toggle">
+          <span class="switch-track" aria-hidden="true"></span>
+        </label>
+      </div>
 
-        <section class="fp-section fp-section-bottom">
-            <h2 class="fp-heading">Мульти-постинг</h2>
-            <p class="fp-body-text">Откройте страницу редактирования объявления, чтобы воспользоваться панелью дублирования.</p>
-        </section>
-      </main>
-  </div>
+      <button class="primary-button" id="bump-now-button" type="button">
+        Поднять сейчас
+      </button>
+
+      <div class="inline-status" id="inline-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="activity">
+      <div class="section-heading">
+        <h2>Последние операции</h2>
+        <button class="text-button" id="refresh-state-button" type="button">Обновить</button>
+      </div>
+
+      <div class="activity-list">
+        <article class="activity-item" id="bump-activity">
+          <div class="activity-icon activity-icon--bump" aria-hidden="true">↑</div>
+          <div class="activity-copy">
+            <h3>Поднятие объявлений</h3>
+            <p id="bump-activity-text">Операций пока не было</p>
+          </div>
+          <time id="bump-activity-time"></time>
+        </article>
+
+        <article class="activity-item" id="multipost-activity">
+          <div class="activity-icon activity-icon--copy" aria-hidden="true">+</div>
+          <div class="activity-copy">
+            <h3>Мультипостинг</h3>
+            <p id="multipost-activity-text">Операций пока не было</p>
+          </div>
+          <time id="multipost-activity-time"></time>
+        </article>
+      </div>
+    </section>
+
+    <section class="hint">
+      <strong>Мультипостинг</strong>
+      <span>Панель появится на странице создания или редактирования объявления.</span>
+    </section>
+  </main>
+
   <script src="popup.js"></script>
 </body>
 </html>

@@ -1,28 +1,39 @@
 {
   "manifest_version": 3,
-  "name": "FunPay Automator Pro",
-  "version": "2.0",
-  "description": "Автоматическое поднятие объявлений и продвинутый мульти-постинг",
+  "name": "FunPay Automation Tool",
+  "version": "2.1.0",
+  "description": "Авто-поднятие объявлений и управляемый мультипостинг для FunPay.",
   "permissions": [
     "storage",
     "alarms",
     "notifications"
   ],
   "host_permissions": [
-    "*://*.funpay.com/*",
-    "*://funpay.com/*"
+    "https://funpay.com/*",
+    "https://*.funpay.com/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["*://*.funpay.com/*", "*://funpay.com/*"],
+      "matches": [
+        "https://funpay.com/lots/offer*",
+        "https://*.funpay.com/lots/offer*"
+      ],
       "js": ["content.js"],
-      "css": ["content.css"]
+      "css": ["content.css"],
+      "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_title": "FunPay Automation Tool"
+  },
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
   }
 }
