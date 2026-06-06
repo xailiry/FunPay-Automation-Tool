@@ -1,13 +1,20 @@
 import { extractCategories } from './parsers.js';
 
 const CATEGORY_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
-const CATEGORY_CACHE_VERSION = 2;
+const CATEGORY_CACHE_VERSION = 3;
+const MINIMUM_CATEGORY_COUNT = 20;
 
 export class CategoryService {
-  constructor({ client, storage, now = Date.now }) {
+  constructor({
+    client,
+    storage,
+    now = Date.now,
+    minimumCategoryCount = MINIMUM_CATEGORY_COUNT
+  }) {
     this.client = client;
     this.storage = storage;
     this.now = now;
+    this.minimumCategoryCount = minimumCategoryCount;
   }
 
   async getCategories(forceRefresh = false) {
@@ -33,9 +40,9 @@ export class CategoryService {
     const home = await this.client.getHomePage();
     const categories = extractCategories(home.text);
 
-    if (categories.length === 0) {
+    if (!this.isCategorySetValid(categories)) {
       throw new Error(
-        'FunPay не вернул список категорий. Возможно, изменилась разметка сайта.'
+        'FunPay вернул неполный список категорий. Обновите страницу и повторите попытку.'
       );
     }
 
@@ -55,12 +62,34 @@ export class CategoryService {
 
   isCacheFresh(categories, updatedAt) {
     return (
-      Array.isArray(categories) &&
-      categories.length > 0 &&
-      categories.every((category) =>
-        Boolean(category.id && category.game && category.section && category.name)
-      ) &&
+      this.isCategorySetValid(categories) &&
       this.now() - updatedAt < CATEGORY_CACHE_TTL_MS
     );
+  }
+
+  isCategorySetValid(categories) {
+    if (
+      !Array.isArray(categories) ||
+      categories.length < this.minimumCategoryCount
+    ) {
+      return false;
+    }
+
+    const ids = new Set();
+
+    return categories.every((category) => {
+      if (
+        !category?.id ||
+        !category.game ||
+        !category.section ||
+        !category.name ||
+        ids.has(category.id)
+      ) {
+        return false;
+      }
+
+      ids.add(category.id);
+      return true;
+    });
   }
 }

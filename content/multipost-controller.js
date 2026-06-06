@@ -176,10 +176,27 @@
           throw new Error(response?.error || 'Не удалось загрузить категории.');
         }
 
+        if (!Array.isArray(response.categories)) {
+          throw new Error('FunPay вернул некорректный список категорий.');
+        }
+
         const currentNodeId = getCurrentNodeId(this.form);
-        this.categories = response.categories.filter(
+        const categories = response.categories.filter(
           (category) => category.id !== currentNodeId
         );
+
+        if (categories.length === 0 && !forceRefresh) {
+          await this.loadCategories(true);
+          return;
+        }
+
+        if (categories.length === 0) {
+          throw new Error(
+            'Категории не загрузились. Обновите расширение на chrome://extensions.'
+          );
+        }
+
+        this.categories = categories;
         this.renderCategories();
       } catch (error) {
         const message = getErrorMessage(error);

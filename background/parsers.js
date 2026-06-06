@@ -23,21 +23,28 @@ export function extractGameId(html) {
 
 export function extractCategories(html) {
   const categoriesById = new Map();
-  const groupPattern =
-    /<div\b[^>]*class=["'][^"']*\bpromo-game-item\b[^"']*["'][^>]*>[\s\S]*?<div\b[^>]*class=["'][^"']*\bgame-title\b[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/div>\s*<ul\b[^>]*>([\s\S]*?)<\/ul>[\s\S]*?<\/div>/gi;
-  let groupMatch;
+  const gameTitlePattern =
+    /<div\b[^>]*class=["'][^"']*\bgame-title\b[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/div>/gi;
+  const gameTitles = [...html.matchAll(gameTitlePattern)];
 
-  while ((groupMatch = groupPattern.exec(html))) {
-    const game = cleanText(groupMatch[1]);
+  for (let index = 0; index < gameTitles.length; index += 1) {
+    const gameMatch = gameTitles[index];
+    const game = cleanText(gameMatch[1]);
+    const groupEnd = gameTitles[index + 1]?.index ?? html.length;
+    const groupHtml = html.slice(gameMatch.index + gameMatch[0].length, groupEnd);
+    const categoryList = groupHtml.match(/<ul\b[^>]*>([\s\S]*?)<\/ul>/i)?.[1];
+
+    if (!game || !categoryList) continue;
+
     const categoryPattern =
-      /<a\b[^>]*href=["'](?:https?:\/\/(?:www\.)?funpay\.com)?\/lots\/(\d+)\/?["'][^>]*>([\s\S]*?)<\/a>/gi;
+      /<a\b[^>]*href=["'](?:https?:\/\/(?:www\.)?funpay\.com)?\/lots\/(\d+)\/?(?:[?#][^"']*)?["'][^>]*>([\s\S]*?)<\/a>/gi;
     let categoryMatch;
 
-    while ((categoryMatch = categoryPattern.exec(groupMatch[2]))) {
+    while ((categoryMatch = categoryPattern.exec(categoryList))) {
       const id = categoryMatch[1];
       const section = cleanText(categoryMatch[2]);
 
-      if (!game || !section || categoriesById.has(id)) continue;
+      if (!section || categoriesById.has(id)) continue;
 
       categoriesById.set(id, {
         id,

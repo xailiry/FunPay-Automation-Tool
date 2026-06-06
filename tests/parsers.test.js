@@ -68,6 +68,34 @@ test('extracts unique, decoded and sorted category names', () => {
   ]);
 });
 
+test('extracts categories from compact FunPay markup without relying on outer divs', () => {
+  const html = `
+    <div class="promo-game-item"><div class="game-title" data-id="853"><a href="https://funpay.com/lots/3478/">Gemini</a></div><ul class="list-inline" data-id="853"><li><a href="https://funpay.com/lots/3478/">Аккаунты</a></li> <li><a href="https://funpay.com/lots/4093/?from=home">Услуги</a></li></ul></div>
+    <div class="promo-game-item"><div class="game-title" data-id="760"><a href="https://funpay.com/lots/3172/">Claude</a></div><ul class="list-inline" data-id="760"><li><a href="https://funpay.com/lots/4234/">Токены</a></li></ul></div>
+  `;
+
+  assert.deepEqual(extractCategories(html), [
+    {
+      id: '4234',
+      game: 'Claude',
+      section: 'Токены',
+      name: 'Claude · Токены'
+    },
+    {
+      id: '3478',
+      game: 'Gemini',
+      section: 'Аккаунты',
+      name: 'Gemini · Аккаунты'
+    },
+    {
+      id: '4093',
+      game: 'Gemini',
+      section: 'Услуги',
+      name: 'Gemini · Услуги'
+    }
+  ]);
+});
+
 test('returns safe empty values when markup does not match', () => {
   assert.equal(extractUserId('<html></html>'), null);
   assert.equal(extractGameId('<html></html>'), null);

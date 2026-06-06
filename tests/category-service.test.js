@@ -22,11 +22,12 @@ test('returns fresh category cache without a network request', async () => {
             name: 'Cached · Услуги'
           }],
           funpayCategoriesUpdatedAt: 9_000,
-          funpayCategoriesVersion: 2
+          funpayCategoriesVersion: 3
         };
       }
     },
-    now: () => 10_000
+    now: () => 10_000,
+    minimumCategoryCount: 1
   });
 
   const result = await service.getCategories();
@@ -58,7 +59,8 @@ test('refreshes and stores stale categories', async () => {
         writes.push(value);
       }
     },
-    now: () => 20_000
+    now: () => 20_000,
+    minimumCategoryCount: 1
   });
 
   const result = await service.getCategories();
@@ -99,11 +101,86 @@ test('invalidates category cache from the old ungrouped format', async () => {
       },
       async set() {}
     },
-    now: () => 10_000
+    now: () => 10_000,
+    minimumCategoryCount: 1
   });
 
   const result = await service.getCategories();
 
   assert.equal(result.fromCache, false);
   assert.equal(requestCount, 1);
+});
+
+test('does not cache a suspiciously incomplete category response', async () => {
+  let writeCount = 0;
+  const service = new CategoryService({
+    client: {
+      async getHomePage() {
+        return {
+          text: `
+            <div class="game-title"><a href="/lots/1/">Gemini</a></div>
+            <ul><li><a href="/lots/2/">Услуги</a></li></ul>
+          `
+        };
+      }
+    },
+    storage: {
+      async get() {
+        return {};
+      },
+      async set() {
+        writeCount += 1;
+      }
+    },
+    minimumCategoryCount: 2
+  });
+
+  await assert.rejects(
+    service.getCategories(),
+    /неполный список категорий/i
+  );
+  assert.equal(writeCount, 0);
+});
+
+test('invalidates a small version 3 cache and refreshes it', async () => {
+  let requestCount = 0;
+  const service = new CategoryService({
+    client: {
+      async getHomePage() {
+        requestCount += 1;
+        return {
+          text: `
+            <div class="game-title"><a href="/lots/1/">Gemini</a></div>
+            <ul>
+              <li><a href="/lots/2/">Услуги</a></li>
+              <li><a href="/lots/3/">Подписка</a></li>
+            </ul>
+          `
+        };
+      }
+    },
+    storage: {
+      async get() {
+        return {
+          funpayCategories: [{
+            id: '2',
+            game: 'Gemini',
+            section: 'Услуги',
+            name: 'Gemini · Услуги'
+          }],
+          funpayCategoriesUpdatedAt: 9_000,
+          funpayCategoriesVersion: 3
+        };
+      },
+      async set() {}
+    },
+    now: () => 10_000,
+    minimumCategoryCount: 2
+  });
+
+  const result = await service.getCategories();
+
+  assert.equal(requestCount, 1);
+  assert.equal(result.fromCache, false);
+  assert.equal(result.categories.length, 2);
 });
