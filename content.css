@@ -211,6 +211,37 @@
   line-height: 1.35;
 }
 
+.fp-selected__edit {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fp-selected__edit:hover .fp-selected__name {
+  color: #8b5c00;
+  text-decoration: underline;
+}
+
+.fp-selected__badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--fp-accent-soft);
+  color: #8b5c00;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 .fp-selected__remove {
   padding: 0;
   border: 0;
@@ -294,6 +325,174 @@
   box-shadow: 0 0 0 3px rgba(216, 155, 25, 0.08);
 }
 
+.fp-modal,
+.fp-modal * {
+  box-sizing: border-box;
+}
+
+.fp-modal {
+  position: fixed;
+  z-index: 2147483646;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 24, 28, 0.48);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+
+.fp-modal__dialog {
+  display: flex;
+  width: min(720px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #d9dde0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(20, 24, 28, 0.22);
+  color: #24282c;
+}
+
+.fp-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px 10px;
+}
+
+.fp-modal__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.fp-modal__close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #dfe2e5;
+  border-radius: 6px;
+  background: #fff;
+  color: #62696f;
+  font: inherit;
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fp-modal__close:hover {
+  background: #f6f7f8;
+  color: #24282c;
+}
+
+.fp-modal__description {
+  margin: 0;
+  padding: 0 22px 16px;
+  border-bottom: 1px solid #e5e7e9;
+  color: #6b7279;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fp-modal__body {
+  display: grid;
+  overflow-y: auto;
+  padding: 20px 22px;
+  gap: 16px;
+}
+
+.fp-draft-field {
+  display: grid;
+  gap: 7px;
+  color: #4d545a;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.fp-draft-field input,
+.fp-draft-field textarea,
+.fp-draft-field select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #cfd3d6;
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+  color: #24282c;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.fp-draft-field textarea {
+  min-height: 108px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.fp-draft-field input:focus,
+.fp-draft-field textarea:focus,
+.fp-draft-field select:focus {
+  border-color: #d89b19;
+  box-shadow: 0 0 0 3px rgba(216, 155, 25, 0.13);
+}
+
+.fp-draft-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid #e0e3e5;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #353a3e;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fp-draft-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #d89b19;
+}
+
+.fp-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid #e5e7e9;
+  background: #f7f8f9;
+}
+
+.fp-modal__cancel,
+.fp-modal__save {
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.fp-modal__cancel {
+  border: 1px solid #cfd3d6;
+  background: #fff;
+  color: #4d545a;
+}
+
+.fp-modal__save {
+  border: 1px solid #c88b0e;
+  background: #d89b19;
+  color: #fff;
+}
+
 @media (max-width: 760px) {
   .fp-panel__body {
     grid-template-columns: 1fr;
@@ -302,5 +501,14 @@
   .fp-picker {
     border-right: 0;
     border-bottom: 1px solid var(--fp-border);
+  }
+
+  .fp-modal {
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  .fp-modal__dialog {
+    max-height: calc(100vh - 20px);
   }
 }

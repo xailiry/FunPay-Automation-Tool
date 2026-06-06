@@ -6,11 +6,11 @@
       this.FormDataClass = FormDataClass;
     }
 
-    build(sourceForm, targetForm, targetCategory) {
+    build(sourceForm, targetForm, targetCategory, overrides = {}) {
       const formData = new this.FormDataClass(targetForm);
       const sourceGroups = groupFieldsByName(getUserFields(sourceForm));
       const targetGroups = groupFieldsByName(getUserFields(targetForm));
-      const sourceBySemanticKey = groupFieldsBySemanticKey(sourceGroups);
+      const sourceEntries = [...sourceGroups];
       const transferredSourceNames = new Set();
       const transferredTargetNames = [];
 
@@ -18,7 +18,11 @@
         const sourceEntry =
           sourceGroups.has(targetName)
             ? [targetName, sourceGroups.get(targetName)]
-            : sourceBySemanticKey.get(getGroupSemanticKey(targetControls));
+            : findCompatibleSourceEntry(
+              targetControls,
+              sourceEntries,
+              transferredSourceNames
+            );
 
         if (!sourceEntry) continue;
 
@@ -38,6 +42,7 @@
         targetForm,
         targetCategory
       });
+      applyOverrides(formData, targetForm, overrides);
 
       formData.set('node_id', targetCategory.nodeId);
 
@@ -48,9 +53,25 @@
           droppedFields: [...sourceGroups.keys()].filter(
             (name) => !transferredSourceNames.has(name)
           ),
-          forcedPersistent
+          forcedPersistent,
+          overriddenFields: Object.keys(overrides || {})
         }
       };
+    }
+
+    createDraft(sourceForm, targetForm, targetCategory, overrides = {}) {
+      const { formData } = this.build(
+        sourceForm,
+        targetForm,
+        targetCategory,
+        overrides
+      );
+
+      return [...getEditableGroups(targetForm)]
+        .map(([name, controls]) =>
+          createDraftField(name, controls, formData)
+        )
+        .filter(Boolean);
     }
   };
 
@@ -74,22 +95,50 @@
     return groups;
   }
 
-  function groupFieldsBySemanticKey(groups) {
-    const byKey = new Map();
+  function findCompatibleSourceEntry(
+    targetControls,
+    sourceEntries,
+    transferredSourceNames
+  ) {
+    const semanticKey = getGroupSemanticKey(targetControls);
+    if (!semanticKey) return null;
 
-    for (const [name, controls] of groups) {
-      const semanticKey = getGroupSemanticKey(controls);
-      if (semanticKey && !byKey.has(semanticKey)) {
-        byKey.set(semanticKey, [name, controls]);
-      }
+    const languageKey = getGroupLanguageKey(targetControls);
+    const semanticMatches = sourceEntries.filter(([, controls]) =>
+      getGroupSemanticKey(controls) === semanticKey
+    );
+    const availableMatches = semanticMatches.filter(
+      ([name]) => !transferredSourceNames.has(name)
+    );
+    const candidates =
+      availableMatches.length > 0 ? availableMatches : semanticMatches;
+
+    if (languageKey) {
+      const languageMatch = candidates.find(([, controls]) =>
+        getGroupLanguageKey(controls) === languageKey
+      );
+      if (languageMatch) return languageMatch;
     }
 
-    return byKey;
+    return (
+      candidates.find(([, controls]) => !getGroupLanguageKey(controls)) ||
+      candidates[0] ||
+      null
+    );
   }
 
   function getGroupSemanticKey(controls) {
     for (const control of controls) {
       const key = getSemanticKey(control);
+      if (key) return key;
+    }
+
+    return null;
+  }
+
+  function getGroupLanguageKey(controls) {
+    for (const control of controls) {
+      const key = getLanguageKey(control);
       if (key) return key;
     }
 
@@ -120,6 +169,30 @@
     return patterns.find(([, pattern]) => pattern.test(hint))?.[0] || null;
   }
 
+  function getLanguageKey(control) {
+    const hint = [
+      control.name,
+      control.id,
+      control.getAttribute?.('lang'),
+      control.closest?.('[lang]')?.getAttribute('lang'),
+      control.closest?.('.tab-pane')?.id,
+      ...getControlLabels(control)
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase('ru');
+
+    if (/(?:^|[^a-z])(ru|rus|russian)(?:[^a-z]|$)|по-русски|русск/i.test(hint)) {
+      return 'ru';
+    }
+
+    if (/(?:^|[^a-z])(en|eng|english)(?:[^a-z]|$)|по-английски|английск/i.test(hint)) {
+      return 'en';
+    }
+
+    return null;
+  }
+
   function getControlLabels(control) {
     const labels = control.labels ? [...control.labels] : [];
     return labels.map((label) => label.textContent || '');
@@ -140,6 +213,147 @@
     for (const value of getControlValues(sourceControls)) {
       formData.append(targetName, value);
     }
+  }
+
+  function applyOverrides(formData, targetForm, overrides) {
+    for (const [name, override] of Object.entries(overrides || {})) {
+      const controls = [...targetForm.elements].filter(
+        (control) => control.name === name && !control.disabled
+      );
+
+      if (controls.length === 0 || !override) continue;
+
+      formData.delete(name);
+
+      for (const value of getHiddenValues(targetForm, name)) {
+        formData.append(name, value);
+      }
+
+      for (const value of override.values || []) {
+        formData.append(name, value);
+      }
+    }
+  }
+
+  function getEditableGroups(form) {
+    return groupFieldsByName(
+      [...form.elements].filter((control) => {
+        if (!control.name || control.disabled) return false;
+
+        const type = (control.type || '').toLowerCase();
+        return ![
+          'hidden',
+          'file',
+          'button',
+          'submit',
+          'reset',
+          'image'
+        ].includes(type);
+      })
+    );
+  }
+
+  function createDraftField(name, controls, formData) {
+    const primaryControl = controls[0];
+    const type = getDraftFieldType(primaryControl, controls);
+    if (!type) return null;
+
+    const values = formData.getAll(name).map((value) => String(value));
+    const language = getGroupLanguageKey(controls);
+    const label = getDraftLabel(primaryControl, name, language);
+    const field = {
+      name,
+      type,
+      label,
+      language,
+      values
+    };
+
+    if (type === 'checkbox') {
+      const checkbox = controls.find(
+        (control) => (control.type || '').toLowerCase() === 'checkbox'
+      );
+      field.checked = values.includes(String(checkbox?.value || 'on'));
+      field.checkedValue = String(checkbox?.value || 'on');
+    }
+
+    if (type === 'select' || type === 'radio') {
+      field.options = getDraftOptions(controls);
+      field.multiple = Boolean(
+        controls.find((control) => control.tagName === 'SELECT')?.multiple
+      );
+    }
+
+    return field;
+  }
+
+  function getDraftFieldType(control, controls) {
+    const type = (control.type || '').toLowerCase();
+
+    if (type === 'checkbox') return 'checkbox';
+    if (type === 'radio') return 'radio';
+    if (control.tagName === 'TEXTAREA') return 'textarea';
+    if (control.tagName === 'SELECT') return 'select';
+    if (['number', 'text', 'search', 'email', 'url', 'tel'].includes(type)) {
+      return type === 'number' ? 'number' : 'text';
+    }
+
+    if (controls.some((item) => item.tagName === 'TEXTAREA')) return 'textarea';
+    return null;
+  }
+
+  function getDraftLabel(control, name, language) {
+    const directLabel = getControlLabels(control)
+      .map((value) => value.replace(/\s+/g, ' ').trim())
+      .find(Boolean);
+    const groupLabel = control.closest?.('.form-group')
+      ?.querySelector?.('label, .control-label')
+      ?.textContent
+      ?.replace(/\s+/g, ' ')
+      .trim();
+    const base = directLabel || groupLabel || humanizeFieldName(name);
+    const languageLabel =
+      language === 'ru' ? 'Русский' : language === 'en' ? 'English' : null;
+    const labelAlreadyIncludesLanguage =
+      language === 'ru'
+        ? /по-русски|русск/i.test(base)
+        : language === 'en'
+          ? /english|по-английски|английск/i.test(base)
+          : false;
+
+    return languageLabel && !labelAlreadyIncludesLanguage
+      ? `${base} · ${languageLabel}`
+      : base;
+  }
+
+  function humanizeFieldName(name) {
+    return name
+      .replace(/[\[\]_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function getDraftOptions(controls) {
+    const options = [];
+
+    for (const control of controls) {
+      if (control.tagName === 'SELECT') {
+        for (const option of control.options || []) {
+          options.push({
+            value: String(option.value),
+            label: option.textContent?.trim() || String(option.value)
+          });
+        }
+        continue;
+      }
+
+      options.push({
+        value: String(control.value || 'on'),
+        label: getControlLabels(control).join(' ').trim() || String(control.value)
+      });
+    }
+
+    return options;
   }
 
   function getControlValues(controls) {

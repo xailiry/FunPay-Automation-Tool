@@ -85,6 +85,21 @@ test('adapts source values to target schema and drops incompatible fields', () =
   assert.equal(formData.has('amount'), false);
   assert.equal(report.forcedPersistent, true);
   assert.deepEqual(report.droppedFields.sort(), ['amount', 'auto_delivery']);
+
+  const customized = adapter.build(
+    sourceForm,
+    targetForm,
+    { nodeId: '4093', section: 'Услуги' },
+    { deactivate_after_sale: { values: ['1'] } }
+  );
+  assert.deepEqual(
+    customized.formData.getAll('deactivate_after_sale'),
+    ['0', '1']
+  );
+  assert.deepEqual(
+    customized.report.overriddenFields,
+    ['deactivate_after_sale']
+  );
 });
 
 test('preserves target-only defaults outside service categories', () => {
@@ -113,6 +128,106 @@ test('preserves target-only defaults outside service categories', () => {
   assert.equal(report.forcedPersistent, false);
 });
 
+test('creates editable draft fields and applies per-category overrides', () => {
+  const sourceForm = createForm([
+    control({
+      name: 'summary_ru',
+      value: 'Исходный текст',
+      label: 'Краткое описание · Русский'
+    }),
+    control({
+      name: 'summary_en',
+      value: 'Source text',
+      label: 'Short description · English'
+    }),
+    control({
+      name: 'buyer_message',
+      value: 'Исходный автоответ',
+      label: 'Сообщение покупателю после оплаты',
+      tagName: 'TEXTAREA'
+    }),
+    control({
+      name: 'active',
+      type: 'checkbox',
+      value: '1',
+      checked: true,
+      label: 'Активное'
+    })
+  ]);
+  const targetForm = createForm([
+    control({ name: 'node_id', type: 'hidden', value: '4187' }),
+    control({
+      name: 'title_ru',
+      value: '',
+      label: 'Краткое описание · Русский'
+    }),
+    control({
+      name: 'title_en',
+      value: '',
+      label: 'Short description · English'
+    }),
+    control({
+      name: 'payment_message',
+      value: '',
+      label: 'Сообщение покупателю после оплаты',
+      tagName: 'TEXTAREA'
+    }),
+    control({
+      name: 'is_active',
+      type: 'checkbox',
+      value: '1',
+      checked: false,
+      label: 'Активное'
+    })
+  ]);
+  const adapter = new TargetFormAdapter(FakeFormData);
+  const overrides = {
+    title_ru: { values: ['Текст только для Claude'] },
+    payment_message: { values: ['Другой автоответ'] },
+    is_active: { values: [] }
+  };
+
+  const draft = adapter.createDraft(
+    sourceForm,
+    targetForm,
+    { nodeId: '4187', section: 'Услуги' },
+    overrides
+  );
+  const { formData } = adapter.build(
+    sourceForm,
+    targetForm,
+    { nodeId: '4187', section: 'Услуги' },
+    overrides
+  );
+
+  assert.equal(draft.find((field) => field.name === 'title_ru').values[0],
+    'Текст только для Claude');
+  assert.equal(
+    draft.find((field) => field.name === 'title_en').values[0],
+    'Source text'
+  );
+  assert.equal(
+    draft.find((field) => field.name === 'payment_message').type,
+    'textarea'
+  );
+  assert.equal(
+    draft.find((field) => field.name === 'is_active').checked,
+    false
+  );
+  assert.deepEqual(formData.getAll('title_ru'), ['Текст только для Claude']);
+  assert.deepEqual(formData.getAll('payment_message'), ['Другой автоответ']);
+  assert.deepEqual(formData.getAll('is_active'), []);
+  assert.deepEqual(
+    adapter.build(
+      sourceForm,
+      targetForm,
+      { nodeId: '4187', section: 'Услуги' },
+      overrides
+    ).report.overriddenFields.sort(),
+    ['is_active', 'payment_message', 'title_ru']
+  );
+});
+
 function createForm(elements) {
   return { elements };
 }
@@ -136,6 +251,10 @@ function control({
     labels: label ? [{ textContent: label }] : [],
     files: [],
     selectedOptions: [],
+    options: [],
+    closest() {
+      return null;
+    },
     getAttribute() {
       return null;
     }

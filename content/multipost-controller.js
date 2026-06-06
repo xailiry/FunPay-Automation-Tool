@@ -24,6 +24,7 @@
       this.submitButton = findSubmitButton(form);
 
       this.handleSubmit = this.handleSubmit.bind(this);
+      this.editCategory = this.editCategory.bind(this);
     }
 
     initialize() {
@@ -229,9 +230,43 @@
       return true;
     }
 
+    async editCategory(categoryId) {
+      const category = this.selectedCategories.get(categoryId);
+      if (!category || this.isRunning) return;
+
+      this.view.showNotice(`Загрузка черновика: ${category.name}...`, '');
+
+      try {
+        const draft = await this.client.prepareDraft(this.form, {
+          ...category,
+          nodeId: category.id
+        });
+        const overrides = await this.view.openDraftEditor({
+          category,
+          fields: draft.fields
+        });
+
+        this.view.showNotice('', '');
+        if (!overrides) return;
+
+        this.selectedCategories.set(categoryId, {
+          ...category,
+          overrides,
+          customized: true
+        });
+        this.renderSelection();
+      } catch (error) {
+        this.view.showNotice(
+          `Не удалось открыть черновик: ${getErrorMessage(error)}`,
+          'error'
+        );
+      }
+    }
+
     renderSelection() {
       this.view.renderSelection({
         selectedCategories: this.selectedCategories,
+        onEdit: this.editCategory,
         onRemove: (categoryId) => {
           this.selectedCategories.delete(categoryId);
           this.renderSelection();

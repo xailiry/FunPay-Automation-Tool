@@ -16,7 +16,8 @@
       const { formData, report } = this.adapter.build(
         form,
         targetSchema.form,
-        target
+        target,
+        target.overrides
       );
 
       let response;
@@ -67,6 +68,19 @@
         status: 'success',
         message: normalizeMessage(data.message || data.msg) || 'Копия создана',
         adaptation: report
+      };
+    }
+
+    async prepareDraft(form, target) {
+      const targetSchema = await this.loadTargetForm(target.nodeId);
+
+      return {
+        fields: this.adapter.createDraft(
+          form,
+          targetSchema.form,
+          target,
+          target.overrides
+        )
       };
     }
 

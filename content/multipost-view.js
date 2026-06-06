@@ -65,7 +65,7 @@
       list.appendChild(fragment);
     }
 
-    renderSelection({ selectedCategories, onRemove }) {
+    renderSelection({ selectedCategories, onEdit, onRemove }) {
       const list = this.elements.selectedList;
       list.replaceChildren();
       this.elements.selectedCount.textContent = String(selectedCategories.size);
@@ -80,8 +80,50 @@
       }
 
       for (const [id, category] of selectedCategories) {
-        list.appendChild(createSelectedCategory(id, category.name, onRemove));
+        list.appendChild(
+          createSelectedCategory({
+            id,
+            category,
+            onEdit,
+            onRemove
+          })
+        );
       }
+    }
+
+    openDraftEditor({ category, fields }) {
+      return new Promise((resolve) => {
+        const modal = createDraftModal(category, fields);
+        const { dialog, closeButton, cancelButton, saveButton } =
+          getDraftModalElements(modal);
+        let settled = false;
+
+        const close = (value) => {
+          if (settled) return;
+          settled = true;
+          document.removeEventListener('keydown', onKeyDown);
+          modal.remove();
+          resolve(value);
+        };
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') close(null);
+        };
+
+        closeButton.addEventListener('click', () => close(null));
+        cancelButton.addEventListener('click', () => close(null));
+        saveButton.addEventListener('click', () =>
+          close(collectDraftOverrides(modal))
+        );
+        modal.addEventListener('mousedown', (event) => {
+          if (event.target === modal) close(null);
+        });
+        dialog.addEventListener('mousedown', (event) => {
+          event.stopPropagation();
+        });
+        document.addEventListener('keydown', onKeyDown);
+        document.body.appendChild(modal);
+        modal.querySelector('input, textarea, select')?.focus();
+      });
     }
 
     setBusy(busy) {
@@ -219,22 +261,182 @@
     return label;
   }
 
-  function createSelectedCategory(id, name, onRemove) {
+  function createSelectedCategory({ id, category, onEdit, onRemove }) {
     const item = document.createElement('div');
     item.className = 'fp-selected';
 
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'fp-selected__edit';
+    edit.setAttribute(
+      'aria-label',
+      `Настроить будущую копию ${category.name}`
+    );
+
     const label = document.createElement('span');
     label.className = 'fp-selected__name';
-    label.textContent = name;
+    label.textContent = category.name;
+    edit.appendChild(label);
+
+    if (category.customized) {
+      const badge = document.createElement('span');
+      badge.className = 'fp-selected__badge';
+      badge.textContent = 'Настроено';
+      edit.appendChild(badge);
+    }
+
+    edit.addEventListener('click', () => onEdit(id));
 
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'fp-selected__remove';
     remove.textContent = 'Удалить';
-    remove.setAttribute('aria-label', `Удалить категорию ${name}`);
+    remove.setAttribute('aria-label', `Удалить категорию ${category.name}`);
     remove.addEventListener('click', () => onRemove(id));
 
-    item.append(label, remove);
+    item.append(edit, remove);
     return item;
+  }
+
+  function createDraftModal(category, fields) {
+    const modal = document.createElement('div');
+    modal.className = 'fp-modal';
+    modal.setAttribute('role', 'presentation');
+
+    const fieldMarkup = fields.length > 0
+      ? fields.map(createDraftFieldMarkup).join('')
+      : '<div class="fp-empty">В этой категории нет редактируемых полей.</div>';
+
+    modal.innerHTML = `
+      <section
+        class="fp-modal__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fp-draft-title"
+      >
+        <header class="fp-modal__header">
+          <div>
+            <div class="fp-panel__eyebrow">Черновик будущей копии</div>
+            <h2 class="fp-modal__title" id="fp-draft-title"></h2>
+          </div>
+          <button
+            class="fp-modal__close"
+            type="button"
+            aria-label="Закрыть редактор"
+          >×</button>
+        </header>
+        <p class="fp-modal__description">
+          Поля уже заполнены из исходного объявления. Изменения применятся
+          только к этой копии.
+        </p>
+        <div class="fp-modal__body">${fieldMarkup}</div>
+        <footer class="fp-modal__footer">
+          <button class="fp-modal__cancel" type="button">Отмена</button>
+          <button class="fp-modal__save" type="button">Сохранить настройки</button>
+        </footer>
+      </section>
+    `;
+    modal.querySelector('#fp-draft-title').textContent = category.name;
+    return modal;
+  }
+
+  function createDraftFieldMarkup(field, index) {
+    const id = `fp-draft-field-${index}`;
+    const commonAttributes =
+      `data-draft-name="${escapeAttribute(field.name)}" ` +
+      `data-draft-type="${field.type}"`;
+
+    if (field.type === 'checkbox') {
+      return `
+        <label class="fp-draft-check">
+          <input
+            type="checkbox"
+            ${commonAttributes}
+            data-checked-value="${escapeAttribute(field.checkedValue)}"
+            ${field.checked ? 'checked' : ''}
+          >
+          <span>${escapeHtml(field.label)}</span>
+        </label>
+      `;
+    }
+
+    if (field.type === 'select' || field.type === 'radio') {
+      const options = (field.options || []).map((option) => {
+        const selected = field.values.includes(String(option.value));
+        return `
+          <option
+            value="${escapeAttribute(option.value)}"
+            ${selected ? 'selected' : ''}
+          >${escapeHtml(option.label)}</option>
+        `;
+      }).join('');
+
+      return `
+        <label class="fp-draft-field" for="${id}">
+          <span>${escapeHtml(field.label)}</span>
+          <select
+            id="${id}"
+            ${commonAttributes}
+            ${field.multiple ? 'multiple' : ''}
+          >${options}</select>
+        </label>
+      `;
+    }
+
+    const value = field.values[0] || '';
+    const control = field.type === 'textarea'
+      ? `<textarea id="${id}" ${commonAttributes}>${escapeHtml(value)}</textarea>`
+      : `<input id="${id}" type="${field.type}" ${commonAttributes} value="${escapeAttribute(value)}">`;
+
+    return `
+      <label class="fp-draft-field" for="${id}">
+        <span>${escapeHtml(field.label)}</span>
+        ${control}
+      </label>
+    `;
+  }
+
+  function getDraftModalElements(modal) {
+    return {
+      dialog: modal.querySelector('.fp-modal__dialog'),
+      closeButton: modal.querySelector('.fp-modal__close'),
+      cancelButton: modal.querySelector('.fp-modal__cancel'),
+      saveButton: modal.querySelector('.fp-modal__save')
+    };
+  }
+
+  function collectDraftOverrides(modal) {
+    const overrides = {};
+
+    for (const control of modal.querySelectorAll('[data-draft-name]')) {
+      const name = control.dataset.draftName;
+      const type = control.dataset.draftType;
+      let values;
+
+      if (type === 'checkbox') {
+        values = control.checked ? [control.dataset.checkedValue || 'on'] : [];
+      } else if (control.tagName === 'SELECT' && control.multiple) {
+        values = [...control.selectedOptions].map((option) => option.value);
+      } else {
+        values = [control.value];
+      }
+
+      overrides[name] = { values };
+    }
+
+    return overrides;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function escapeAttribute(value) {
+    return escapeHtml(value);
   }
 })();
