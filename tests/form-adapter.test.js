@@ -228,6 +228,118 @@ test('creates editable draft fields and applies per-category overrides', () => {
   );
 });
 
+test('adapts the real Claude services form without losing localized fields', () => {
+  const sourceForm = createForm([
+    control({ name: 'csrf_token', type: 'hidden', value: 'source-token' }),
+    control({ name: 'node_id', type: 'hidden', value: 'source-node' }),
+    control({ name: 'fields[summary][ru]', value: '60 промптов' }),
+    control({ name: 'fields[summary][en]', value: '60 prompts' }),
+    control({
+      name: 'fields[desc][ru]',
+      value: 'Описание на русском',
+      tagName: 'TEXTAREA'
+    }),
+    control({
+      name: 'fields[desc][en]',
+      value: 'English description',
+      tagName: 'TEXTAREA'
+    }),
+    control({
+      name: 'fields[payment_msg][ru]',
+      value: 'Инструкция после оплаты',
+      tagName: 'TEXTAREA'
+    }),
+    control({
+      name: 'fields[payment_msg][en]',
+      value: 'Instructions after payment',
+      tagName: 'TEXTAREA'
+    }),
+    control({ name: 'price', value: '123' }),
+    control({ name: 'amount', type: 'number', value: '34' }),
+    control({
+      name: 'active',
+      type: 'checkbox',
+      value: '1',
+      checked: true,
+      label: 'Активное'
+    }),
+    control({
+      name: 'auto_delivery',
+      type: 'checkbox',
+      value: '1',
+      checked: true,
+      label: 'Автоматическая выдача'
+    })
+  ]);
+  const targetForm = createForm([
+    control({ name: 'csrf_token', type: 'hidden', value: 'target-token' }),
+    control({ name: 'form_created_at', type: 'hidden', value: 'created-at' }),
+    control({ name: 'offer_id', type: 'hidden', value: '' }),
+    control({ name: 'node_id', type: 'hidden', value: '4187' }),
+    control({ name: 'location', type: 'hidden', value: '' }),
+    control({ name: 'deleted', type: 'hidden', value: '' }),
+    control({ name: 'fields[summary][ru]', value: '' }),
+    control({ name: 'fields[summary][en]', value: '' }),
+    control({ name: 'fields[desc][ru]', value: '', tagName: 'TEXTAREA' }),
+    control({ name: 'fields[desc][en]', value: '', tagName: 'TEXTAREA' }),
+    control({
+      name: 'fields[payment_msg][ru]',
+      value: '',
+      tagName: 'TEXTAREA'
+    }),
+    control({
+      name: 'fields[payment_msg][en]',
+      value: '',
+      tagName: 'TEXTAREA'
+    }),
+    control({ name: 'fields[images]', type: 'hidden', value: '' }),
+    control({ name: 'price', value: '' }),
+    control({
+      name: 'active',
+      type: 'checkbox',
+      value: '1',
+      checked: true,
+      label: 'Активное'
+    }),
+    control({ name: 'deactivate_after_sale', type: 'hidden', value: '0' }),
+    control({
+      name: 'deactivate_after_sale',
+      type: 'checkbox',
+      value: '1',
+      checked: true,
+      label: 'Деактивировать после продажи'
+    })
+  ]);
+  const adapter = new TargetFormAdapter(FakeFormData);
+
+  const { formData, report } = adapter.build(sourceForm, targetForm, {
+    nodeId: '4187',
+    section: 'Услуги'
+  });
+
+  assert.deepEqual(formData.getAll('csrf_token'), ['target-token']);
+  assert.deepEqual(formData.getAll('form_created_at'), ['created-at']);
+  assert.deepEqual(formData.getAll('node_id'), ['4187']);
+  assert.deepEqual(formData.getAll('fields[summary][ru]'), ['60 промптов']);
+  assert.deepEqual(formData.getAll('fields[summary][en]'), ['60 prompts']);
+  assert.deepEqual(formData.getAll('fields[desc][ru]'), ['Описание на русском']);
+  assert.deepEqual(formData.getAll('fields[desc][en]'), ['English description']);
+  assert.deepEqual(
+    formData.getAll('fields[payment_msg][ru]'),
+    ['Инструкция после оплаты']
+  );
+  assert.deepEqual(
+    formData.getAll('fields[payment_msg][en]'),
+    ['Instructions after payment']
+  );
+  assert.deepEqual(formData.getAll('price'), ['123']);
+  assert.deepEqual(formData.getAll('active'), ['1']);
+  assert.deepEqual(formData.getAll('deactivate_after_sale'), ['0']);
+  assert.equal(formData.has('amount'), false);
+  assert.equal(formData.has('auto_delivery'), false);
+  assert.equal(report.forcedPersistent, true);
+});
+
 function createForm(elements) {
   return { elements };
 }

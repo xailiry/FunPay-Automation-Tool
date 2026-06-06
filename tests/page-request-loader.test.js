@@ -80,6 +80,7 @@ test('rejects requests outside the sender FunPay origin', async () => {
 
 test('allows target form GET and offerSave POST only', async () => {
   const requests = [];
+  const openedUrls = [];
   const loader = new PageRequestLoader({
     scripting: {
       async executeScript(options) {
@@ -88,13 +89,17 @@ test('allows target form GET and offerSave POST only', async () => {
           result: {
             ok: true,
             status: 200,
-            url: options.args?.[0]?.url || 'https://funpay.com/lots/4093/trade',
+            url: options.args?.[0]?.url || 'https://funpay.com/lots/offerEdit?node=4187',
             text: '{}'
           }
         }];
       }
     },
-    tabs: createTabs()
+    tabs: createTabs({
+      onCreate(options) {
+        openedUrls.push(options.url);
+      }
+    })
   });
   const sender = {
     url: 'https://funpay.com/lots/1356/trade',
@@ -103,7 +108,7 @@ test('allows target form GET and offerSave POST only', async () => {
 
   await loader.request({
     request: {
-      url: 'https://funpay.com/lots/4093/trade',
+      url: 'https://funpay.com/lots/offerEdit?node=4187',
       method: 'GET'
     }
   }, sender);
@@ -116,7 +121,28 @@ test('allows target form GET and offerSave POST only', async () => {
   }, sender);
 
   assert.equal(requests.length, 2);
+  assert.deepEqual(openedUrls, ['https://funpay.com/lots/offerEdit?node=4187']);
   assert.deepEqual(requests[1].entries, [['node_id', '4093']]);
+
+  await assert.rejects(
+    loader.request({
+      request: {
+        url: 'https://funpay.com/lots/offerEdit?node=not-a-number',
+        method: 'GET'
+      }
+    }, sender),
+    /Недопустимый запрос/
+  );
+
+  await assert.rejects(
+    loader.request({
+      request: {
+        url: 'https://funpay.com/lots/4093/trade',
+        method: 'GET'
+      }
+    }, sender),
+    /Недопустимый запрос/
+  );
 
   await assert.rejects(
     loader.request({
@@ -155,6 +181,10 @@ test('loads target form through an inactive document tab and closes it', async (
   const removed = [];
   const tabs = createTabs({
     createdTab: { id: 77, status: 'complete' },
+    onCreate(options) {
+      assert.equal(options.url, 'https://funpay.com/lots/offerEdit?node=4187');
+      assert.equal(options.active, false);
+    },
     onRemove(tabId) {
       removed.push(tabId);
     }
@@ -179,7 +209,7 @@ test('loads target form through an inactive document tab and closes it', async (
 
   const result = await loader.request({
     request: {
-      url: 'https://funpay.com/lots/4093/trade',
+      url: 'https://funpay.com/lots/offerEdit?node=4187',
       method: 'GET'
     }
   }, {
@@ -241,10 +271,12 @@ test('rebuilds FormData for a page-context POST request', async () => {
 
 function createTabs({
   createdTab = { id: 77, status: 'complete' },
+  onCreate = () => {},
   onRemove = () => {}
 } = {}) {
   return {
-    async create() {
+    async create(options) {
+      onCreate(options);
       return createdTab;
     },
     async get() {

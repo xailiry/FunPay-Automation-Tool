@@ -18,12 +18,12 @@ export class PageRequestLoader {
     if (
       !requestedUrl ||
       requestedUrl.origin !== pageUrl.origin ||
-      !isAllowedRequest(method, requestedUrl.pathname)
+      !isAllowedRequest(method, requestedUrl)
     ) {
       throw new Error('Недопустимый запрос к FunPay.');
     }
 
-    if (method === 'GET' && /^\/lots\/\d+\/trade\/?$/.test(requestedUrl.pathname)) {
+    if (method === 'GET' && isOfferEditorUrl(requestedUrl)) {
       return this.loadDocument(requestedUrl.toString());
     }
 
@@ -152,12 +152,19 @@ export function readCurrentDocument() {
   };
 }
 
-function isAllowedRequest(method, pathname) {
+function isAllowedRequest(method, url) {
   if (method === 'GET') {
-    return pathname === '/' || /^\/lots\/\d+\/trade\/?$/.test(pathname);
+    return url.pathname === '/' || isOfferEditorUrl(url);
   }
 
-  return method === 'POST' && /^\/lots\/offerSave\/?$/.test(pathname);
+  return method === 'POST' && /^\/lots\/offerSave\/?$/.test(url.pathname);
+}
+
+function isOfferEditorUrl(url) {
+  return (
+    /^\/lots\/offerEdit\/?$/.test(url.pathname) &&
+    /^\d+$/.test(url.searchParams.get('node') || '')
+  );
 }
 
 function normalizeEntries(entries) {

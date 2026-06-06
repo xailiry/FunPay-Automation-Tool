@@ -80,7 +80,10 @@
 
     async loadTargetForm(nodeId) {
       const response = await this.requestPage({
-        url: new URL(`/lots/${nodeId}/trade`, location.origin),
+        url: new URL(
+          `/lots/offerEdit?node=${encodeURIComponent(nodeId)}`,
+          location.origin
+        ),
         method: 'GET'
       });
       const text = response.text;
@@ -95,6 +98,7 @@
 
       const document = new DOMParser().parseFromString(text, 'text/html');
       const form =
+        document.querySelector('form.form-offer-editor') ||
         document.querySelector('form.js-lot-form') ||
         document.querySelector('form[action*="offerSave"]') ||
         [...document.forms].find((candidate) =>
