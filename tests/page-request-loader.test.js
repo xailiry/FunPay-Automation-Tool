@@ -9,17 +9,20 @@ import {
 test('runs an allowed FunPay request in the main world of the current tab', async () => {
   let options;
   const loader = new PageRequestLoader({
-    async executeScript(nextOptions) {
-      options = nextOptions;
-      return [{
-        result: {
-          ok: true,
-          status: 200,
-          url: 'https://funpay.com/',
-          text: '<html>catalog</html>'
-        }
-      }];
-    }
+    scripting: {
+      async executeScript(nextOptions) {
+        options = nextOptions;
+        return [{
+          result: {
+            ok: true,
+            status: 200,
+            url: 'https://funpay.com/',
+            text: '<html>catalog</html>'
+          }
+        }];
+      }
+    },
+    tabs: createTabs()
   });
 
   const result = await loader.request(
@@ -44,9 +47,12 @@ test('runs an allowed FunPay request in the main world of the current tab', asyn
 
 test('rejects requests outside the sender FunPay origin', async () => {
   const loader = new PageRequestLoader({
-    async executeScript() {
-      throw new Error('Should not execute');
-    }
+    scripting: {
+      async executeScript() {
+        throw new Error('Should not execute');
+      }
+    },
+    tabs: createTabs()
   });
 
   await assert.rejects(
@@ -75,17 +81,20 @@ test('rejects requests outside the sender FunPay origin', async () => {
 test('allows target form GET and offerSave POST only', async () => {
   const requests = [];
   const loader = new PageRequestLoader({
-    async executeScript(options) {
-      requests.push(options.args[0]);
-      return [{
-        result: {
-          ok: true,
-          status: 200,
-          url: options.args[0].url,
-          text: '{}'
-        }
-      }];
-    }
+    scripting: {
+      async executeScript(options) {
+        requests.push(options.args?.[0] || { url: 'document-navigation' });
+        return [{
+          result: {
+            ok: true,
+            status: 200,
+            url: options.args?.[0]?.url || 'https://funpay.com/lots/4093/trade',
+            text: '{}'
+          }
+        }];
+      }
+    },
+    tabs: createTabs()
   });
   const sender = {
     url: 'https://funpay.com/lots/1356/trade',
@@ -122,9 +131,12 @@ test('allows target form GET and offerSave POST only', async () => {
 
 test('rejects an empty scripting result', async () => {
   const loader = new PageRequestLoader({
-    async executeScript() {
-      return [{}];
-    }
+    scripting: {
+      async executeScript() {
+        return [{}];
+      }
+    },
+    tabs: createTabs()
   });
 
   await assert.rejects(
@@ -137,6 +149,46 @@ test('rejects an empty scripting result', async () => {
     ),
     /не вернул ответ/
   );
+});
+
+test('loads target form through an inactive document tab and closes it', async () => {
+  const removed = [];
+  const tabs = createTabs({
+    createdTab: { id: 77, status: 'complete' },
+    onRemove(tabId) {
+      removed.push(tabId);
+    }
+  });
+  const loader = new PageRequestLoader({
+    scripting: {
+      async executeScript(options) {
+        assert.deepEqual(options.target, { tabId: 77 });
+        assert.equal(options.world, 'MAIN');
+        return [{
+          result: {
+            ok: true,
+            status: 200,
+            url: 'https://funpay.com/lots/offerEdit?node=4093',
+            text: '<form action="/lots/offerSave"></form>'
+          }
+        }];
+      }
+    },
+    tabs
+  });
+
+  const result = await loader.request({
+    request: {
+      url: 'https://funpay.com/lots/4093/trade',
+      method: 'GET'
+    }
+  }, {
+    url: 'https://funpay.com/lots/1356/trade',
+    tab: { id: 42 }
+  });
+
+  assert.match(result.text, /offerSave/);
+  assert.deepEqual(removed, [77]);
 });
 
 test('rebuilds FormData for a page-context POST request', async () => {
@@ -186,3 +238,29 @@ test('rebuilds FormData for a page-context POST request', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+function createTabs({
+  createdTab = { id: 77, status: 'complete' },
+  onRemove = () => {}
+} = {}) {
+  return {
+    async create() {
+      return createdTab;
+    },
+    async get() {
+      return createdTab;
+    },
+    async remove(tabId) {
+      onRemove(tabId);
+    },
+    onUpdated: createEvent(),
+    onRemoved: createEvent()
+  };
+}
+
+function createEvent() {
+  return {
+    addListener() {},
+    removeListener() {}
+  };
+}

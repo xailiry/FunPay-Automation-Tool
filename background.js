@@ -13,7 +13,10 @@ const bumpService = new BumpService({
   storage,
   notify: createNotification
 });
-const pageRequestLoader = new PageRequestLoader(chrome.scripting);
+const pageRequestLoader = new PageRequestLoader({
+  scripting: chrome.scripting,
+  tabs: chrome.tabs
+});
 const messageHandlers = new Map([
   ['getExtensionState', getExtensionState],
   ['setAutoBump', ({ enabled }) => setAutoBump(Boolean(enabled))],

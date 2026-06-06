@@ -1,6 +1,8 @@
 export class PageRequestLoader {
-  constructor(scripting) {
+  constructor({ scripting, tabs, timeoutMs = 20_000 }) {
     this.scripting = scripting;
+    this.tabs = tabs;
+    this.timeoutMs = timeoutMs;
   }
 
   async request(message, sender) {
@@ -19,6 +21,10 @@ export class PageRequestLoader {
       !isAllowedRequest(method, requestedUrl.pathname)
     ) {
       throw new Error('Недопустимый запрос к FunPay.');
+    }
+
+    if (method === 'GET' && /^\/lots\/\d+\/trade\/?$/.test(requestedUrl.pathname)) {
+      return this.loadDocument(requestedUrl.toString());
     }
 
     const [execution] = await this.scripting.executeScript({
@@ -42,6 +48,68 @@ export class PageRequestLoader {
     }
 
     return execution.result;
+  }
+
+  async loadDocument(url) {
+    const tab = await this.tabs.create({
+      url,
+      active: false
+    });
+
+    if (!tab.id) {
+      throw new Error('Chrome не создал вкладку целевой формы.');
+    }
+
+    try {
+      await this.waitForTab(tab.id);
+      const [execution] = await this.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: 'MAIN',
+        func: readCurrentDocument
+      });
+
+      if (
+        !execution?.result ||
+        typeof execution.result.text !== 'string' ||
+        typeof execution.result.url !== 'string'
+      ) {
+        throw new Error('FunPay не вернул документ целевой формы.');
+      }
+
+      return execution.result;
+    } finally {
+      await this.tabs.remove(tab.id).catch(() => {});
+    }
+  }
+
+  async waitForTab(tabId) {
+    const current = await this.tabs.get(tabId);
+    if (current.status === 'complete') return;
+
+    await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        cleanup();
+        reject(new Error('Загрузка формы FunPay превысила время ожидания.'));
+      }, this.timeoutMs);
+      const onUpdated = (updatedTabId, changeInfo) => {
+        if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+        cleanup();
+        resolve();
+      };
+      const onRemoved = (removedTabId) => {
+        if (removedTabId !== tabId) return;
+        cleanup();
+        reject(new Error('Вкладка целевой формы была закрыта.'));
+      };
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        this.tabs.onUpdated.removeListener(onUpdated);
+        this.tabs.onRemoved.removeListener(onRemoved);
+      };
+
+      this.tabs.onUpdated.addListener(onUpdated);
+      this.tabs.onRemoved.addListener(onRemoved);
+    });
   }
 }
 
@@ -72,6 +140,15 @@ export async function performPageRequest(request) {
     status: response.status,
     url: response.url,
     text
+  };
+}
+
+export function readCurrentDocument() {
+  return {
+    ok: true,
+    status: 200,
+    url: location.href,
+    text: document.documentElement.outerHTML
   };
 }
 

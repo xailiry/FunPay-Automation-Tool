@@ -110,7 +110,7 @@
         form,
         action: new URL(
           form.getAttribute('action') || '/lots/offerSave',
-          location.origin
+          response.url || location.origin
         )
       };
     }
