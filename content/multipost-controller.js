@@ -7,15 +7,15 @@
     findSubmitButton,
     getCurrentNodeId,
     getErrorMessage,
-    isSubmitControl,
-    sendRuntimeMessage
+    isSubmitControl
   } = namespace.Utils;
 
   namespace.MultiPostController = class MultiPostController {
-    constructor({ form, view, client }) {
+    constructor({ form, view, client, catalog }) {
       this.form = form;
       this.view = view;
       this.client = client;
+      this.catalog = catalog;
       this.categories = [];
       this.selectedCategories = new Map();
       this.searchQuery = '';
@@ -167,33 +167,14 @@
       this.view.setCategoriesLoading(true);
 
       try {
-        const response = await sendRuntimeMessage({
-          action: 'getCategories',
-          forceRefresh
-        });
-
-        if (!response?.ok) {
-          throw new Error(response?.error || 'Не удалось загрузить категории.');
-        }
-
-        if (!Array.isArray(response.categories)) {
-          throw new Error('FunPay вернул некорректный список категорий.');
-        }
-
+        const catalog = await this.catalog.getCategories(forceRefresh);
         const currentNodeId = getCurrentNodeId(this.form);
-        const categories = response.categories.filter(
+        const categories = catalog.filter(
           (category) => category.id !== currentNodeId
         );
 
-        if (categories.length === 0 && !forceRefresh) {
-          await this.loadCategories(true);
-          return;
-        }
-
         if (categories.length === 0) {
-          throw new Error(
-            'Категории не загрузились. Обновите расширение на chrome://extensions.'
-          );
+          throw new Error('В каталоге FunPay не найдено доступных категорий.');
         }
 
         this.categories = categories;

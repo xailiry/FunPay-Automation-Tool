@@ -1,4 +1,10 @@
-const { FunPayOfferClient, MultiPostController, MultiPostView, Utils } =
+const {
+  CategoryCatalog,
+  FunPayOfferClient,
+  MultiPostController,
+  MultiPostView,
+  Utils
+} =
   globalThis.FunPayAutomation;
 
 const offerForm = Utils.findOfferForm();
@@ -8,7 +14,8 @@ if (offerForm && !document.getElementById('fp-automation-panel')) {
   const controller = new MultiPostController({
     form: offerForm,
     view,
-    client: new FunPayOfferClient()
+    client: new FunPayOfferClient(),
+    catalog: new CategoryCatalog()
   });
 
   controller.initialize();

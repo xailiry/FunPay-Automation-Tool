@@ -1,5 +1,5 @@
 import { BumpService } from './background/bump-service.js';
-import { CategoryService } from './background/category-service.js';
+import { PageCategoryLoader } from './background/category-loader.js';
 import { FunPayClient } from './background/funpay-client.js';
 import { normalizeStoredBumpResult } from './background/results.js';
 
@@ -13,19 +13,14 @@ const bumpService = new BumpService({
   storage,
   notify: createNotification
 });
-const categoryService = new CategoryService({
-  client: funPayClient,
-  storage
-});
-
+const categoryLoader = new PageCategoryLoader(chrome.scripting);
 const messageHandlers = new Map([
   ['getExtensionState', getExtensionState],
   ['setAutoBump', ({ enabled }) => setAutoBump(Boolean(enabled))],
   ['triggerBumpNow', () => bumpService.run()],
   [
-    'getCategories',
-    ({ forceRefresh }) =>
-      categoryService.getCategories(Boolean(forceRefresh))
+    'loadCategoryCatalog',
+    (message, sender) => categoryLoader.load(message, sender)
   ]
 ]);
 
@@ -56,7 +51,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!handler) return false;
 
   Promise.resolve()
-    .then(() => handler(message))
+    .then(() => handler(message, sender))
     .then((result) => sendResponse(createSuccessResponse(message.action, result)))
     .catch((error) => {
       sendResponse({
@@ -110,7 +105,7 @@ async function syncAutoBumpAlarm() {
 function createSuccessResponse(action, result) {
   if (action === 'getExtensionState') return { ok: true, ...result };
   if (action === 'triggerBumpNow') return { ok: true, result };
-  if (action === 'getCategories') return { ok: true, ...result };
+  if (action === 'loadCategoryCatalog') return { ok: true, ...result };
   return { ok: true };
 }
 
