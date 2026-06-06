@@ -43,6 +43,7 @@
         targetCategory
       });
       applyOverrides(formData, targetForm, overrides);
+      removeInactiveDeliveryGoods(formData, targetForm);
 
       formData.set('node_id', targetCategory.nodeId);
 
@@ -158,6 +159,8 @@
       .toLocaleLowerCase('ru');
 
     const patterns = [
+      ['autoDelivery', /автоматическ.{0,15}выдач|auto.{0,15}deliver/],
+      ['deliveryGoods', /(^|[^\p{L}])товар(?:ы|ов)?([^\p{L}]|$)|(^|[^a-z])goods?([^a-z]|$)|(^|[^a-z])products?([^a-z]|$)/u],
       ['buyerMessage', /сообщени.{0,20}покупател|buyer.{0,20}message|payment.{0,20}message/],
       ['summary', /кратк.{0,15}описан|short.{0,15}description|summary|offer.{0,10}title/],
       ['description', /подробн.{0,15}описан|detailed.{0,15}description|description|detail/],
@@ -272,11 +275,13 @@
     const values = formData.getAll(name).map((value) => String(value));
     const language = getGroupLanguageKey(controls);
     const label = getDraftLabel(primaryControl, name, language);
+    const semanticKey = getGroupSemanticKey(controls);
     const field = {
       name,
       type,
       label,
       language,
+      semanticKey,
       values
     };
 
@@ -414,6 +419,35 @@
       formData.append(checkbox.name, value);
     }
     return true;
+  }
+
+  function removeInactiveDeliveryGoods(formData, targetForm) {
+    const groups = groupFieldsByName(getUserFields(targetForm));
+    const autoDeliveryEntry = [...groups].find(([, controls]) =>
+      getGroupSemanticKey(controls) === 'autoDelivery'
+    );
+
+    if (!autoDeliveryEntry) return;
+
+    const [autoDeliveryName, autoDeliveryControls] = autoDeliveryEntry;
+    const enabledValues = new Set(
+      autoDeliveryControls
+        .filter((control) =>
+          ['checkbox', 'radio'].includes((control.type || '').toLowerCase())
+        )
+        .map((control) => String(control.value || 'on'))
+    );
+    const autoDeliveryEnabled = formData
+      .getAll(autoDeliveryName)
+      .some((value) => enabledValues.has(String(value)));
+
+    if (autoDeliveryEnabled) return;
+
+    for (const [name, controls] of groups) {
+      if (getGroupSemanticKey(controls) === 'deliveryGoods') {
+        formData.delete(name);
+      }
+    }
   }
 
   function getHiddenValues(form, name) {

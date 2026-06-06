@@ -128,6 +128,72 @@ test('preserves target-only defaults outside service categories', () => {
   assert.equal(report.forcedPersistent, false);
 });
 
+test('keeps delivery goods only when automatic delivery is enabled', () => {
+  const sourceForm = createForm([
+    control({
+      name: 'auto_delivery',
+      type: 'checkbox',
+      value: '1',
+      checked: false,
+      label: 'Автоматическая выдача'
+    }),
+    control({
+      name: 'goods',
+      value: 'Старый товар',
+      label: 'Товары',
+      tagName: 'TEXTAREA'
+    })
+  ]);
+  const targetForm = createForm([
+    control({ name: 'node_id', type: 'hidden', value: '1356' }),
+    control({
+      name: 'auto_delivery',
+      type: 'checkbox',
+      value: '1',
+      checked: false,
+      label: 'Автоматическая выдача'
+    }),
+    control({
+      name: 'goods',
+      value: '',
+      label: 'Товары',
+      tagName: 'TEXTAREA'
+    })
+  ]);
+  const adapter = new TargetFormAdapter(FakeFormData);
+
+  const disabled = adapter.build(sourceForm, targetForm, {
+    nodeId: '1356',
+    section: 'Прочее'
+  });
+  const enabled = adapter.build(
+    sourceForm,
+    targetForm,
+    { nodeId: '1356', section: 'Прочее' },
+    {
+      auto_delivery: { values: ['1'] },
+      goods: { values: ['Новый товар'] }
+    }
+  );
+  const draft = adapter.createDraft(sourceForm, targetForm, {
+    nodeId: '1356',
+    section: 'Прочее'
+  });
+
+  assert.deepEqual(disabled.formData.getAll('auto_delivery'), []);
+  assert.equal(disabled.formData.has('goods'), false);
+  assert.deepEqual(enabled.formData.getAll('auto_delivery'), ['1']);
+  assert.deepEqual(enabled.formData.getAll('goods'), ['Новый товар']);
+  assert.equal(
+    draft.find((field) => field.name === 'auto_delivery').semanticKey,
+    'autoDelivery'
+  );
+  assert.equal(
+    draft.find((field) => field.name === 'goods').semanticKey,
+    'deliveryGoods'
+  );
+});
+
 test('creates editable draft fields and applies per-category overrides', () => {
   const sourceForm = createForm([
     control({

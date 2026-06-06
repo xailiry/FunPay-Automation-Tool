@@ -337,18 +337,22 @@
       </section>
     `;
     modal.querySelector('#fp-draft-title').textContent = category.name;
+    bindDraftDependencies(modal);
     return modal;
   }
 
   function createDraftFieldMarkup(field, index) {
     const id = `fp-draft-field-${index}`;
+    const semanticAttribute = field.semanticKey
+      ? ` data-draft-semantic="${escapeAttribute(field.semanticKey)}"`
+      : '';
     const commonAttributes =
       `data-draft-name="${escapeAttribute(field.name)}" ` +
       `data-draft-type="${field.type}"`;
 
     if (field.type === 'checkbox') {
       return `
-        <label class="fp-draft-check">
+        <label class="fp-draft-check"${semanticAttribute}>
           <input
             type="checkbox"
             ${commonAttributes}
@@ -372,7 +376,7 @@
       }).join('');
 
       return `
-        <label class="fp-draft-field" for="${id}">
+        <label class="fp-draft-field" for="${id}"${semanticAttribute}>
           <span>${escapeHtml(field.label)}</span>
           <select
             id="${id}"
@@ -389,11 +393,36 @@
       : `<input id="${id}" type="${field.type}" ${commonAttributes} value="${escapeAttribute(value)}">`;
 
     return `
-      <label class="fp-draft-field" for="${id}">
+      <label class="fp-draft-field" for="${id}"${semanticAttribute}>
         <span>${escapeHtml(field.label)}</span>
         ${control}
       </label>
     `;
+  }
+
+  function bindDraftDependencies(modal) {
+    const autoDelivery = modal.querySelector(
+      '[data-draft-semantic="autoDelivery"] input[data-draft-name]'
+    );
+    const goodsFields = modal.querySelectorAll(
+      '[data-draft-semantic="deliveryGoods"]'
+    );
+
+    if (!autoDelivery || goodsFields.length === 0) return;
+
+    const updateGoodsVisibility = () => {
+      const hidden = !autoDelivery.checked;
+
+      for (const field of goodsFields) {
+        field.hidden = hidden;
+        field.querySelectorAll('[data-draft-name]').forEach((control) => {
+          control.disabled = hidden;
+        });
+      }
+    };
+
+    autoDelivery.addEventListener('change', updateGoodsVisibility);
+    updateGoodsVisibility();
   }
 
   function getDraftModalElements(modal) {
@@ -409,6 +438,8 @@
     const overrides = {};
 
     for (const control of modal.querySelectorAll('[data-draft-name]')) {
+      if (control.disabled) continue;
+
       const name = control.dataset.draftName;
       const type = control.dataset.draftType;
       let values;

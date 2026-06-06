@@ -405,6 +405,10 @@
   gap: 16px;
 }
 
+.fp-modal [hidden] {
+  display: none !important;
+}
+
 .fp-draft-field {
   display: grid;
   gap: 7px;
