@@ -118,26 +118,22 @@
   namespace.parseCategoryCatalog = parseCategoryCatalog;
 
   function loadCatalogHtml(url) {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(
-        {
-          action: 'loadCategoryCatalog',
-          url: url.toString()
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
+    return namespace.Utils.sendRuntimeMessage({
+      action: 'requestFunPayPage',
+      request: {
+        url: url.toString(),
+        method: 'GET'
+      }
+    }).then((response) => {
+      if (!response?.ok || typeof response.response?.text !== 'string') {
+        throw new Error(response?.error || 'Catalog response is invalid');
+      }
 
-          if (!response?.ok || typeof response.html !== 'string') {
-            reject(new Error(response?.error || 'Catalog response is invalid'));
-            return;
-          }
+      if (!response.response.ok) {
+        throw new Error(`HTTP ${response.response.status}`);
+      }
 
-          resolve(response.html);
-        }
-      );
+      return response.response.text;
     });
   }
 

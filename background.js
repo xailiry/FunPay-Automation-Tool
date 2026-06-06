@@ -1,5 +1,5 @@
 import { BumpService } from './background/bump-service.js';
-import { PageCategoryLoader } from './background/category-loader.js';
+import { PageRequestLoader } from './background/page-request-loader.js';
 import { FunPayClient } from './background/funpay-client.js';
 import { normalizeStoredBumpResult } from './background/results.js';
 
@@ -13,14 +13,14 @@ const bumpService = new BumpService({
   storage,
   notify: createNotification
 });
-const categoryLoader = new PageCategoryLoader(chrome.scripting);
+const pageRequestLoader = new PageRequestLoader(chrome.scripting);
 const messageHandlers = new Map([
   ['getExtensionState', getExtensionState],
   ['setAutoBump', ({ enabled }) => setAutoBump(Boolean(enabled))],
   ['triggerBumpNow', () => bumpService.run()],
   [
-    'loadCategoryCatalog',
-    (message, sender) => categoryLoader.load(message, sender)
+    'requestFunPayPage',
+    (message, sender) => pageRequestLoader.request(message, sender)
   ]
 ]);
 
@@ -105,7 +105,7 @@ async function syncAutoBumpAlarm() {
 function createSuccessResponse(action, result) {
   if (action === 'getExtensionState') return { ok: true, ...result };
   if (action === 'triggerBumpNow') return { ok: true, result };
-  if (action === 'loadCategoryCatalog') return { ok: true, ...result };
+  if (action === 'requestFunPayPage') return { ok: true, response: result };
   return { ok: true };
 }
 

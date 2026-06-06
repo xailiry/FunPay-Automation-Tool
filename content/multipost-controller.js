@@ -59,24 +59,54 @@
       this.view.showProgress();
       this.view.updateProgress(0, targets.length, 'Подготовка очереди...');
 
+      let shouldSaveOriginal = false;
+
       try {
         const results = await this.publishCopies(targets);
         const summary = createMultiPostSummary(startedAt, results);
         await this.saveSummary(summary);
+
+        if (summary.failedCount > 0) {
+          this.showFailedSummary(summary);
+          return;
+        }
+
+        shouldSaveOriginal = true;
         this.showSummary(summary);
         await delay(Config.nativeSubmitDelayMs);
       } catch (error) {
         this.view.showNotice(
-          `Мультипостинг прерван: ${getErrorMessage(error)}. Сохраняем исходное объявление...`,
-          'warning'
+          `Мультипостинг прерван: ${getErrorMessage(error)}. Исходное объявление не сохранено.`,
+          'error'
         );
       } finally {
-        try {
-          this.continueNativeSubmit(submitter);
-        } finally {
-          this.reset();
+        if (shouldSaveOriginal) {
+          try {
+            this.continueNativeSubmit(submitter);
+          } finally {
+            this.reset();
+          }
+        } else {
+          this.isRunning = false;
+          this.view.setBusy(false);
+          this.view.setSubmitDisabled(submitter, false);
+          this.view.hideProgress();
+          this.renderSelection();
+          this.renderCategories();
         }
       }
+    }
+
+    showFailedSummary(summary) {
+      const failures = summary.results
+        .filter((result) => result.status === 'failed')
+        .map((result) => `${result.name}: ${result.message}`)
+        .join('; ');
+
+      this.view.showNotice(
+        `Копии не созданы: ${failures}. Исходное объявление не сохранено.`,
+        'error'
+      );
     }
 
     async publishCopies(targets) {
@@ -99,6 +129,7 @@
             status: 'failed',
             message: getErrorMessage(error)
           });
+          break;
         }
 
         this.view.updateProgress(
@@ -124,17 +155,9 @@
     }
 
     showSummary(summary) {
-      if (summary.failedCount === 0) {
-        this.view.showNotice(
-          `Создано копий: ${summary.successCount}. Сохраняем объявление...`,
-          'success'
-        );
-        return;
-      }
-
       this.view.showNotice(
-        `Создано: ${summary.successCount}, ошибок: ${summary.failedCount}. Сохраняем исходное объявление...`,
-        'warning'
+        `Создано копий: ${summary.successCount}. Сохраняем объявление...`,
+        'success'
       );
     }
 

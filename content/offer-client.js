@@ -3,6 +3,7 @@
   const {
     isLoginResponse,
     normalizeMessage,
+    sendRuntimeMessage,
     tryParseJson
   } = namespace.Utils;
 
@@ -20,29 +21,22 @@
         target.overrides
       );
 
-      let response;
-
-      try {
-        response = await fetch(
-          targetSchema.action,
-          {
-            method: (targetSchema.form.method || 'POST').toUpperCase(),
-            body: formData,
-            credentials: 'same-origin',
-            cache: 'no-store',
-            headers: {
-              'x-requested-with': 'XMLHttpRequest'
-            }
-          }
-        );
-      } catch {
-        throw new Error('Нет соединения с FunPay');
-      }
-
-      const text = await response.text();
+      const response = await this.requestPage({
+        url: targetSchema.action,
+        method: (targetSchema.form.method || 'POST').toUpperCase(),
+        entries: serializeFormData(formData),
+        headers: {
+          'x-requested-with': 'XMLHttpRequest'
+        }
+      });
+      const text = response.text;
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const failedData = tryParseJson(text);
+        const failedMessage = normalizeMessage(
+          failedData?.error || failedData?.message || failedData?.msg
+        );
+        throw new Error(failedMessage || `HTTP ${response.status}`);
       }
 
       if (isLoginResponse(response.url, text)) {
@@ -85,18 +79,11 @@
     }
 
     async loadTargetForm(nodeId) {
-      let response;
-
-      try {
-        response = await fetch(`/lots/${nodeId}/trade`, {
-          credentials: 'same-origin',
-          cache: 'no-store'
-        });
-      } catch {
-        throw new Error('Не удалось загрузить форму целевой категории');
-      }
-
-      const text = await response.text();
+      const response = await this.requestPage({
+        url: new URL(`/lots/${nodeId}/trade`, location.origin),
+        method: 'GET'
+      });
+      const text = response.text;
 
       if (!response.ok) {
         throw new Error(`Форма категории вернула HTTP ${response.status}`);
@@ -109,7 +96,11 @@
       const document = new DOMParser().parseFromString(text, 'text/html');
       const form =
         document.querySelector('form.js-lot-form') ||
-        document.querySelector('form[action*="offerSave"]');
+        document.querySelector('form[action*="offerSave"]') ||
+        [...document.forms].find((candidate) =>
+          candidate.querySelector('[name="node_id"]') &&
+          candidate.querySelector('input, textarea, select')
+        );
 
       if (!form) {
         throw new Error('FunPay не вернул форму целевой категории');
@@ -123,5 +114,47 @@
         )
       };
     }
+
+    async requestPage(request) {
+      let response;
+
+      try {
+        response = await sendRuntimeMessage({
+          action: 'requestFunPayPage',
+          request: {
+            ...request,
+            url: request.url.toString()
+          }
+        });
+      } catch {
+        throw new Error('Нет соединения с вкладкой FunPay');
+      }
+
+      if (!response?.ok || !response.response) {
+        throw new Error(response?.error || 'FunPay не вернул ответ');
+      }
+
+      return response.response;
+    }
   };
+
+  function serializeFormData(formData) {
+    const entries = [];
+
+    for (const [name, value] of formData.entries()) {
+      if (typeof value === 'string') {
+        entries.push([name, value]);
+        continue;
+      }
+
+      if (!value?.name && !value?.size) continue;
+
+      throw new Error(
+        'Новые изображения нельзя перенести в копию автоматически. ' +
+        'Сначала сохраните объявление без новых файлов.'
+      );
+    }
+
+    return entries;
+  }
 })();
