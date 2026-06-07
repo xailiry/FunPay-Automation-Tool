@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FunPay Automation Tool",
-  "version": "2.4.6",
-  "description": "Авто-поднятие объявлений и управляемый мультипостинг для FunPay.",
+  "version": "2.5.0",
+  "description": "Панель продавца, метрики, авто-поднятие и управляемый мультипостинг для FunPay.",
   "permissions": [
     "storage",
     "alarms",
@@ -34,6 +34,24 @@
         "content.js"
       ],
       "css": ["content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://funpay.com/users/*",
+        "https://*.funpay.com/users/*"
+      ],
+      "js": [
+        "content/shared.js",
+        "content/seller-dashboard-data.js",
+        "content/seller-offer-store.js",
+        "content/seller-dashboard-client.js",
+        "content/seller-dashboard-elements.js",
+        "content/seller-dashboard-view.js",
+        "content/seller-dashboard-controller.js",
+        "seller-dashboard.js"
+      ],
+      "css": ["seller-dashboard.css"],
       "run_at": "document_idle"
     }
   ],

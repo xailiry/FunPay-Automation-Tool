@@ -6,7 +6,7 @@ import {
 const FUNPAY_ORIGIN = 'https://funpay.com';
 
 export class FunPayClient {
-  constructor(fetchImplementation = fetch) {
+  constructor(fetchImplementation = globalThis.fetch.bind(globalThis)) {
     this.fetch = fetchImplementation;
   }
 

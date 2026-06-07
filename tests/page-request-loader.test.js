@@ -78,7 +78,7 @@ test('rejects requests outside the sender FunPay origin', async () => {
   );
 });
 
-test('allows target form GET and offerSave POST only', async () => {
+test('allows the exact extension GET and POST routes only', async () => {
   const requests = [];
   const openedUrls = [];
   const loader = new PageRequestLoader({
@@ -119,10 +119,33 @@ test('allows target form GET and offerSave POST only', async () => {
       entries: [['node_id', '4093']]
     }
   }, sender);
+  await loader.request({
+    request: {
+      url: 'https://funpay.com/orders/trade',
+      method: 'GET'
+    }
+  }, sender);
+  await loader.request({
+    request: {
+      url: 'https://funpay.com/offer/delete',
+      method: 'POST',
+      entries: [
+        ['action', 'delete'],
+        ['type', 'lot'],
+        ['offer_id', '69189264']
+      ]
+    }
+  }, sender);
 
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 4);
   assert.deepEqual(openedUrls, ['https://funpay.com/lots/offerEdit?node=4187']);
   assert.deepEqual(requests[1].entries, [['node_id', '4093']]);
+  assert.equal(requests[2].url, 'https://funpay.com/orders/trade');
+  assert.deepEqual(requests[3].entries, [
+    ['action', 'delete'],
+    ['type', 'lot'],
+    ['offer_id', '69189264']
+  ]);
 
   await assert.rejects(
     loader.request({
@@ -149,6 +172,26 @@ test('allows target form GET and offerSave POST only', async () => {
       request: {
         url: 'https://funpay.com/account/logout',
         method: 'POST'
+      }
+    }, sender),
+    /Недопустимый запрос/
+  );
+
+  await assert.rejects(
+    loader.request({
+      request: {
+        url: 'https://funpay.com/lots/offerEdit?node=4187&offer=bad',
+        method: 'GET'
+      }
+    }, sender),
+    /Недопустимый запрос/
+  );
+
+  await assert.rejects(
+    loader.request({
+      request: {
+        url: 'https://funpay.com/lots/offerEdit?node=4187&debug=1',
+        method: 'GET'
       }
     }, sender),
     /Недопустимый запрос/

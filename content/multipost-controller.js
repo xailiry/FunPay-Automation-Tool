@@ -11,11 +11,18 @@
   } = namespace.Utils;
 
   namespace.MultiPostController = class MultiPostController {
-    constructor({ form, view, client, catalog }) {
+    constructor({
+      form,
+      view,
+      client,
+      catalog,
+      storage = chrome.storage.local
+    }) {
       this.form = form;
       this.view = view;
       this.client = client;
       this.catalog = catalog;
+      this.storage = storage;
       this.categories = [];
       this.selectedCategories = new Map();
       this.searchQuery = '';
@@ -148,9 +155,9 @@
 
     async saveSummary(summary) {
       try {
-        await chrome.storage.local.set({ lastMultiPostResult: summary });
-      } catch (error) {
-        console.warn('FunPay Automation: failed to save multipost result', error);
+        await this.storage.set({ lastMultiPostResult: summary });
+      } catch {
+        // Operation history is optional and must not block publication.
       }
     }
 

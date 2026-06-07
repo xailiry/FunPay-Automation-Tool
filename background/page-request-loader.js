@@ -154,16 +154,31 @@ export function readCurrentDocument() {
 
 function isAllowedRequest(method, url) {
   if (method === 'GET') {
-    return url.pathname === '/' || isOfferEditorUrl(url);
+    return (
+      url.pathname === '/' ||
+      /^\/orders\/trade\/?$/.test(url.pathname) ||
+      isOfferEditorUrl(url)
+    );
   }
 
-  return method === 'POST' && /^\/lots\/offerSave\/?$/.test(url.pathname);
+  return (
+    method === 'POST' &&
+    (
+      /^\/lots\/offerSave\/?$/.test(url.pathname) ||
+      /^\/offer\/delete\/?$/.test(url.pathname)
+    )
+  );
 }
 
 function isOfferEditorUrl(url) {
-  return (
-    /^\/lots\/offerEdit\/?$/.test(url.pathname) &&
-    /^\d+$/.test(url.searchParams.get('node') || '')
+  if (!/^\/lots\/offerEdit\/?$/.test(url.pathname)) return false;
+  if (!/^\d+$/.test(url.searchParams.get('node') || '')) return false;
+
+  const offerId = url.searchParams.get('offer');
+  if (offerId !== null && !/^\d+$/.test(offerId)) return false;
+
+  return [...url.searchParams.keys()].every(
+    (key) => key === 'node' || key === 'offer'
   );
 }
 
