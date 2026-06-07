@@ -128,6 +128,10 @@
         metrics.revenue,
         metrics.currency
       );
+      this.elements.withdrawal.textContent = Elements.formatMoney(
+        metrics.withdrawal.net,
+        metrics.currency
+      );
       this.elements.average.textContent = Elements.formatMoney(
         metrics.average,
         metrics.currency

@@ -37,7 +37,17 @@
       <div class="fp-seller-banner" hidden></div>
       <div class="fp-seller-metrics">
         <article><span>Продажи</span><strong data-metric="sales">0</strong></article>
-        <article><span>Выручка</span><strong data-metric="revenue">0 ₽</strong></article>
+        <article>
+          <span>Выручка</span>
+          <strong data-metric="revenue">0 ₽</strong>
+          <div
+            class="fp-seller-metric-secondary"
+            title="Оценка для СБП и банковской карты: комиссия 3%, но не менее 30 ₽"
+          >
+            <strong data-metric="withdrawal">0 ₽</strong>
+            <span>После комиссии вывода</span>
+          </div>
+        </article>
         <article><span>Средний чек</span><strong data-metric="average">0 ₽</strong></article>
         <article><span>Возвраты</span><strong data-metric="refunds">0</strong></article>
       </div>
@@ -117,6 +127,7 @@
     return {
       sales: panel.querySelector('[data-metric="sales"]'),
       revenue: panel.querySelector('[data-metric="revenue"]'),
+      withdrawal: panel.querySelector('[data-metric="withdrawal"]'),
       average: panel.querySelector('[data-metric="average"]'),
       refunds: panel.querySelector('[data-metric="refunds"]'),
       period: panel.querySelector('[data-control="period"]'),

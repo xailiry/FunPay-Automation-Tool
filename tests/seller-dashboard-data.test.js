@@ -6,11 +6,22 @@ await import('../content/seller-dashboard-data.js');
 
 const {
   aggregateOrders,
+  calculateWithdrawalEstimate,
   createOfferSalesMap,
   filterOrdersByPeriod,
   normalizeProductTitle,
   parseOrdersDocument
 } = globalThis.FunPayAutomation.SellerDashboardData;
+
+test('estimates card and SBP withdrawal with a 3% fee of at least 30 rubles', () => {
+  assert.deepEqual(calculateWithdrawalEstimate(0), { fee: 0, net: 0 });
+  assert.deepEqual(calculateWithdrawalEstimate(80), { fee: 30, net: 50 });
+  assert.deepEqual(calculateWithdrawalEstimate(1000), { fee: 30, net: 970 });
+
+  const largeWithdrawal = calculateWithdrawalEstimate(43298.97);
+  assert.equal(largeWithdrawal.fee, 1298.9691);
+  assert.ok(Math.abs(largeWithdrawal.net - 42000.0009) < 1e-9);
+});
 
 const orders = [
   order({
@@ -59,6 +70,7 @@ test('aggregates successful sales and refunds by the selected period', () => {
 
   assert.equal(sevenDays.orderCount, 2);
   assert.equal(sevenDays.revenue, 5);
+  assert.deepEqual(sevenDays.withdrawal, { fee: 30, net: 0 });
   assert.equal(sevenDays.average, 2.5);
   assert.equal(sevenDays.refundCount, 0);
   assert.equal(sevenDays.topProducts.length, 1);

@@ -169,6 +169,31 @@
   white-space: nowrap;
 }
 
+.fp-seller-metric-secondary {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  opacity: 0.58;
+}
+
+.fp-seller-metric-secondary strong {
+  flex: 0 0 auto;
+  color: var(--fpd-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fp-seller-metric-secondary span {
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 .fp-seller-metrics-toolbar {
   display: flex;
   align-items: center;

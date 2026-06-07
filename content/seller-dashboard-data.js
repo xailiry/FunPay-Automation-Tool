@@ -5,6 +5,7 @@
 
   namespace.SellerDashboardData = Object.freeze({
     aggregateOrders,
+    calculateWithdrawalEstimate,
     collectProfile,
     createOfferSalesMap,
     filterOrdersByPeriod,
@@ -135,6 +136,7 @@
     const refunds = periodOrders.filter(isRefundOrder);
     const currency = successful[0]?.currency || refunds[0]?.currency || '₽';
     const revenue = sum(successful.map((order) => order.amount));
+    const withdrawal = calculateWithdrawalEstimate(revenue);
     const products = new Map();
 
     for (const order of successful) {
@@ -164,6 +166,7 @@
       grouping,
       orderCount: successful.length,
       revenue,
+      withdrawal,
       average: successful.length > 0 ? revenue / successful.length : 0,
       refundCount: refunds.length,
       refundAmount: sum(refunds.map((order) => order.amount)),
@@ -175,6 +178,22 @@
         }))
         .sort((a, b) => b.count - a.count || b.revenue - a.revenue)
         .slice(0, 5)
+    };
+  }
+
+  function calculateWithdrawalEstimate(amount, {
+    rate = 0.03,
+    minimumFee = 30
+  } = {}) {
+    const normalizedAmount = Math.max(0, Number(amount) || 0);
+    if (normalizedAmount === 0) {
+      return { fee: 0, net: 0 };
+    }
+
+    const fee = Math.max(normalizedAmount * rate, minimumFee);
+    return {
+      fee,
+      net: Math.max(0, normalizedAmount - fee)
     };
   }
 
