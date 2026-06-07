@@ -66,20 +66,23 @@
       }
     }
 
-    async deleteOffer({ offerId, csrfToken, action = 'delete' }) {
-      const response = await this.requestPage({
-        url: new URL('/offer/delete', location.origin),
-        method: 'POST',
-        entries: [
-          ['csrf_token', csrfToken],
-          ['action', action],
-          ['type', 'lot'],
-          ['offer_id', String(offerId)]
-        ],
-        headers: {
-          'x-requested-with': 'XMLHttpRequest'
-        }
-      });
+    async deleteOffer({ offerId, nodeId }) {
+      let envelope;
+
+      try {
+        envelope = await this.messenger({
+          action: 'deleteFunPayOffer',
+          offerId: String(offerId),
+          nodeId: String(nodeId)
+        });
+      } catch {
+        throw new Error('Нет соединения с вкладкой FunPay');
+      }
+
+      if (!envelope?.ok || !envelope.response) {
+        throw new Error(envelope?.error || 'FunPay не вернул результат удаления');
+      }
+      const response = envelope.response;
 
       if (!response.ok) {
         throw new Error(`Удаление вернуло HTTP ${response.status}`);

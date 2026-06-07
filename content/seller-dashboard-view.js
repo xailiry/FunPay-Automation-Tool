@@ -187,11 +187,29 @@
       const offer = findOffer(this.profile.groups, offerId);
       if (!offer) return;
 
+      if (active) offer.restoredFromCache = false;
       offer.wrapper.classList.toggle('is-inactive', !active);
+      offer.wrapper.classList.toggle(
+        'is-restored',
+        Boolean(offer.restoredFromCache)
+      );
       const checkbox = offer.wrapper.querySelector(
         'input[type="checkbox"][data-offer-id]'
       );
       if (checkbox) checkbox.checked = active;
+      const status = offer.wrapper.querySelector('.fp-seller-offer-active-text');
+      if (status) status.textContent = active ? 'Активное' : 'Активировать';
+      const type = offer.wrapper.querySelector('.fp-seller-offer__type');
+      if (type) {
+        type.textContent = offer.autoDelivery ? 'Автовыдача' : 'Обычное';
+        if (offer.restoredFromCache) type.textContent += ' · локальная запись';
+      }
+      const remove = offer.wrapper.querySelector('.fp-seller-delete');
+      if (remove) {
+        remove.textContent = offer.restoredFromCache
+          ? 'Убрать из списка'
+          : 'Удалить';
+      }
     }
 
     setSaveState(enabled, loading = false) {
@@ -281,12 +299,20 @@
         modal.className = 'fp-seller-modal';
         modal.innerHTML = `
           <section class="fp-seller-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="fp-delete-title">
-            <div class="fp-seller-modal__eyebrow">Удаление объявления</div>
-            <h2 id="fp-delete-title">Удалить это объявление?</h2>
+            <div class="fp-seller-modal__eyebrow">${
+              offer.restoredFromCache ? 'Локальная запись' : 'Удаление объявления'
+            }</div>
+            <h2 id="fp-delete-title">${
+              offer.restoredFromCache
+                ? 'Убрать запись из панели?'
+                : 'Удалить это объявление?'
+            }</h2>
             <p></p>
             <div class="fp-seller-modal__actions">
               <button type="button" class="fp-seller-button fp-seller-button--secondary" data-action="cancel">Отмена</button>
-              <button type="button" class="fp-seller-button fp-seller-button--danger" data-action="confirm">Удалить</button>
+              <button type="button" class="fp-seller-button fp-seller-button--danger" data-action="confirm">${
+                offer.restoredFromCache ? 'Убрать' : 'Удалить'
+              }</button>
             </div>
           </section>
         `;
@@ -380,9 +406,15 @@
           activeLabel.className = 'fp-seller-offer-active-toggle';
           const activeCheckbox = document.createElement('input');
           activeCheckbox.type = 'checkbox';
-          activeCheckbox.checked = offer.active;
+          activeCheckbox.checked =
+            Boolean(offer.active) && !offer.restoredFromCache;
           activeCheckbox.dataset.offerId = offer.offerId;
-          activeLabel.append(activeCheckbox, 'Активное');
+          const activeText = document.createElement('span');
+          activeText.className = 'fp-seller-offer-active-text';
+          activeText.textContent = offer.restoredFromCache
+            ? 'Активировать'
+            : 'Активное';
+          activeLabel.append(activeCheckbox, activeText);
 
           const edit = document.createElement('a');
           edit.className = 'fp-seller-action fp-seller-edit';
@@ -391,7 +423,9 @@
           const remove = document.createElement('button');
           remove.className = 'fp-seller-action fp-seller-delete';
           remove.type = 'button';
-          remove.textContent = 'Удалить';
+          remove.textContent = offer.restoredFromCache
+            ? 'Убрать из списка'
+            : 'Удалить';
           remove.addEventListener('click', () => {
             this.handlers.delete?.(offer);
           });
@@ -401,6 +435,10 @@
           if (!offer.active) {
             wrapper.classList.add('is-inactive');
           }
+          if (offer.restoredFromCache) {
+            wrapper.classList.add('is-restored');
+            type.textContent += ' · локальная запись';
+          }
 
           offer.wrapper = wrapper;
           offer.salesElement = sales;
@@ -409,6 +447,10 @@
     }
 
     bindControls() {
+      this.elements.help.addEventListener('click', () => {
+        globalThis.FunPayUserGuide.open();
+      });
+
       const notifyFilters = () =>
         this.handlers.filtersChange?.(this.getFilterState());
       this.elements.search.addEventListener('input', notifyFilters);

@@ -50,7 +50,51 @@ export class PageRequestLoader {
     return execution.result;
   }
 
+  async deleteOffer(message, sender) {
+    const pageUrl = parseUrl(sender.url);
+    const offerId = String(message.offerId || '');
+    const nodeId = String(message.nodeId || '');
+
+    if (!sender.tab?.id || !isFunPayHost(pageUrl?.hostname)) {
+      throw new Error('Удаление можно выполнить только из открытой вкладки FunPay.');
+    }
+    if (!/^\d+$/.test(offerId) || !/^\d+$/.test(nodeId)) {
+      throw new Error('Некорректные данные объявления.');
+    }
+
+    const editorUrl = new URL('/lots/offerEdit', pageUrl.origin);
+    editorUrl.searchParams.set('node', nodeId);
+    editorUrl.searchParams.set('offer', offerId);
+    const result = await this.runInDocument(
+      editorUrl.toString(),
+      performOfferDeletion,
+      [{ offerId, nodeId }]
+    );
+
+    if (
+      !result ||
+      typeof result.text !== 'string' ||
+      typeof result.status !== 'number'
+    ) {
+      throw new Error('FunPay не вернул результат удаления.');
+    }
+
+    return result;
+  }
+
   async loadDocument(url) {
+    const result = await this.runInDocument(url, readCurrentDocument);
+    if (
+      !result ||
+      typeof result.text !== 'string' ||
+      typeof result.url !== 'string'
+    ) {
+      throw new Error('FunPay не вернул документ целевой формы.');
+    }
+    return result;
+  }
+
+  async runInDocument(url, func, args = []) {
     const tab = await this.tabs.create({
       url,
       active: false
@@ -65,17 +109,9 @@ export class PageRequestLoader {
       const [execution] = await this.scripting.executeScript({
         target: { tabId: tab.id },
         world: 'MAIN',
-        func: readCurrentDocument
+        func,
+        args
       });
-
-      if (
-        !execution?.result ||
-        typeof execution.result.text !== 'string' ||
-        typeof execution.result.url !== 'string'
-      ) {
-        throw new Error('FunPay не вернул документ целевой формы.');
-      }
-
       return execution.result;
     } finally {
       await this.tabs.remove(tab.id).catch(() => {});
@@ -143,6 +179,71 @@ export async function performPageRequest(request) {
   };
 }
 
+export async function performOfferDeletion({ offerId, nodeId }) {
+  const form =
+    document.querySelector('form.form-offer-editor') ||
+    document.querySelector('form[action*="offerSave"]');
+  const formOfferId = form?.querySelector('[name="offer_id"]')?.value;
+  const formNodeId = form?.querySelector('[name="node_id"]')?.value;
+  const deleted = form?.querySelector('[name="deleted"]');
+  const jquery = globalThis.jQuery;
+  const appApi = globalThis.app;
+
+  if (!form || String(formOfferId || '') !== String(offerId)) {
+    throw new Error('FunPay открыл форму другого объявления.');
+  }
+  if (String(formNodeId || '') !== String(nodeId)) {
+    throw new Error('FunPay открыл форму другой категории.');
+  }
+  if (!deleted) {
+    throw new Error('В форме FunPay нет признака удаления.');
+  }
+  if (!jquery?.ajax || !jquery(form)?.serializeObject || !appApi?.processRoute) {
+    throw new Error('Нативный редактор FunPay недоступен.');
+  }
+
+  const action = new URL(
+    appApi.processRoute(form.getAttribute('action')),
+    location.origin
+  );
+  if (
+    action.origin !== location.origin ||
+    !/^\/lots\/offerSave\/?$/.test(action.pathname)
+  ) {
+    throw new Error('Форма FunPay ведёт на неожиданный адрес.');
+  }
+
+  deleted.value = '1';
+  const data = jquery(form).serializeObject();
+
+  return new Promise((resolve) => {
+    jquery.ajax({
+      type: 'POST',
+      url: action.toString(),
+      data,
+      dataType: 'json',
+      success(response, _status, xhr) {
+        resolve({
+          ok: true,
+          status: xhr?.status || 200,
+          url: xhr?.responseURL || action.toString(),
+          text: typeof response === 'string'
+            ? response
+            : JSON.stringify(response ?? {})
+        });
+      },
+      error(xhr) {
+        resolve({
+          ok: false,
+          status: xhr?.status || 0,
+          url: xhr?.responseURL || action.toString(),
+          text: xhr?.responseText || ''
+        });
+      }
+    });
+  });
+}
+
 export function readCurrentDocument() {
   return {
     ok: true,
@@ -163,10 +264,7 @@ function isAllowedRequest(method, url) {
 
   return (
     method === 'POST' &&
-    (
-      /^\/lots\/offerSave\/?$/.test(url.pathname) ||
-      /^\/offer\/delete\/?$/.test(url.pathname)
-    )
+    /^\/lots\/offerSave\/?$/.test(url.pathname)
   );
 }
 

@@ -109,6 +109,7 @@
         group.offers.push({
           ...storedOffer,
           active: false,
+          restoredFromCache: true,
           element: null,
           wrapper: null,
           salesElement: null

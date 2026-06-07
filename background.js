@@ -1,10 +1,8 @@
 import { BumpService } from './background/bump-service.js';
+import { AutoBumpScheduler } from './background/auto-bump-scheduler.js';
 import { PageRequestLoader } from './background/page-request-loader.js';
 import { FunPayClient } from './background/funpay-client.js';
 import { normalizeStoredBumpResult } from './background/results.js';
-
-const AUTO_BUMP_ALARM = 'autoBumpAlarm';
-const AUTO_BUMP_PERIOD_MINUTES = 240;
 
 const storage = chrome.storage.local;
 const funPayClient = new FunPayClient();
@@ -17,37 +15,41 @@ const pageRequestLoader = new PageRequestLoader({
   scripting: chrome.scripting,
   tabs: chrome.tabs
 });
+const autoBumpScheduler = new AutoBumpScheduler({
+  alarms: chrome.alarms,
+  storage,
+  run: () => bumpService.run(),
+  onError(error) {
+    console.error('FunPay Automation: scheduled bump failed', error);
+  }
+});
 const messageHandlers = new Map([
   ['getExtensionState', getExtensionState],
-  ['setAutoBump', ({ enabled }) => setAutoBump(Boolean(enabled))],
-  ['triggerBumpNow', () => bumpService.run()],
+  ['setAutoBump', ({ enabled }) => autoBumpScheduler.setEnabled(Boolean(enabled))],
+  ['triggerBumpNow', () => autoBumpScheduler.runManually()],
   [
     'requestFunPayPage',
     (message, sender) => pageRequestLoader.request(message, sender)
+  ],
+  [
+    'deleteFunPayOffer',
+    (message, sender) => pageRequestLoader.deleteOffer(message, sender)
   ]
 ]);
 
 chrome.runtime.onInstalled.addListener(() => {
-  void syncAutoBumpAlarm();
+  initializeAutoBump();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  void syncAutoBumpAlarm();
+  initializeAutoBump();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name !== AUTO_BUMP_ALARM) return;
-
-  void storage
-    .get(['autoBumpEnabled'])
-    .then(({ autoBumpEnabled }) => {
-      if (autoBumpEnabled) return bumpService.run();
-      return null;
-    })
-    .catch((error) => {
-      console.error('FunPay Automation: scheduled bump failed', error);
-    });
+  void autoBumpScheduler.handleAlarm(alarm).catch(logSchedulerError);
 });
+
+initializeAutoBump();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handler = messageHandlers.get(message?.action);
@@ -69,6 +71,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function getExtensionState() {
   const stored = await storage.get([
     'autoBumpEnabled',
+    'nextAutoBumpAt',
     'lastBumpResult',
     'lastMultiPostResult'
   ]);
@@ -80,36 +83,28 @@ async function getExtensionState() {
 
   return {
     autoBumpEnabled: Boolean(stored.autoBumpEnabled),
+    nextAutoBumpAt: stored.nextAutoBumpAt || null,
     bumpRunning: bumpService.isRunning,
     lastBumpResult,
     lastMultiPostResult: stored.lastMultiPostResult || null
   };
 }
 
-async function setAutoBump(enabled) {
-  await storage.set({ autoBumpEnabled: enabled });
-  await syncAutoBumpAlarm();
-}
-
-async function syncAutoBumpAlarm() {
-  const { autoBumpEnabled } = await storage.get(['autoBumpEnabled']);
-
-  if (!autoBumpEnabled) {
-    await chrome.alarms.clear(AUTO_BUMP_ALARM);
-    return;
-  }
-
-  await chrome.alarms.create(AUTO_BUMP_ALARM, {
-    delayInMinutes: AUTO_BUMP_PERIOD_MINUTES,
-    periodInMinutes: AUTO_BUMP_PERIOD_MINUTES
-  });
-}
-
 function createSuccessResponse(action, result) {
   if (action === 'getExtensionState') return { ok: true, ...result };
+  if (action === 'setAutoBump') return { ok: true, ...result };
   if (action === 'triggerBumpNow') return { ok: true, result };
   if (action === 'requestFunPayPage') return { ok: true, response: result };
+  if (action === 'deleteFunPayOffer') return { ok: true, response: result };
   return { ok: true };
+}
+
+function initializeAutoBump() {
+  void autoBumpScheduler.initialize().catch(logSchedulerError);
+}
+
+function logSchedulerError(error) {
+  console.error('FunPay Automation: auto-bump scheduler failed', error);
 }
 
 function createNotification(title, message) {

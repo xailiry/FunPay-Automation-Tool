@@ -23,10 +23,15 @@
           <h2>Панель продавца</h2>
           <p>Объявления, быстрые действия и статистика продаж в одном месте.</p>
         </div>
-        <div class="fp-seller-dashboard__actions">
-          <button class="fp-seller-refresh fp-seller-save" type="button" disabled>Сохранить изменения</button>
-          <button class="fp-seller-refresh fp-seller-bump" type="button">Поднять товары</button>
-          <button class="fp-seller-refresh fp-seller-sales-refresh" type="button">Обновить продажи</button>
+        <div class="fp-seller-dashboard__action-column">
+          <div class="fp-seller-dashboard__actions">
+            <button class="fp-seller-refresh fp-seller-save" type="button" disabled>Сохранить изменения</button>
+            <button class="fp-seller-refresh fp-seller-bump" type="button">Поднять товары</button>
+            <button class="fp-seller-refresh fp-seller-sales-refresh" type="button">Обновить продажи</button>
+          </div>
+          <div class="fp-seller-dashboard__help">
+            <button type="button" class="fp-seller-help-link fp-seller-help">Справка</button>
+          </div>
         </div>
       </header>
       <div class="fp-seller-banner" hidden></div>
@@ -124,6 +129,7 @@
       status: panel.querySelector('[data-filter="status"]'),
       sort: panel.querySelector('[data-filter="sort"]'),
       save: panel.querySelector('.fp-seller-save'),
+      help: panel.querySelector('.fp-seller-help'),
       refresh: panel.querySelector('.fp-seller-sales-refresh'),
       bump: panel.querySelector('.fp-seller-bump'),
       resultCount: panel.querySelector('[data-result-count]'),

@@ -54,11 +54,14 @@ test('removes an offer after FunPay deletion even when cache writing fails', asy
   const messages = [];
   const view = createView(messages);
   view.confirmDelete = async () => true;
+  let deletion;
   const controller = new SellerDashboardController({
     profile,
     view,
     client: {
-      async deleteOffer() {}
+      async deleteOffer(request) {
+        deletion = request;
+      }
     },
     offerStore: {
       async removeOffer() {
@@ -69,9 +72,52 @@ test('removes an offer after FunPay deletion even when cache writing fails', asy
 
   await controller.deleteOffer(offer);
 
+  assert.deepEqual(deletion, {
+    offerId: offer.offerId,
+    nodeId: offer.nodeId
+  });
   assert.deepEqual(profile.groups[0].offers, []);
   assert.equal(view.removedOfferId, offer.offerId);
   assert.match(messages.at(-1).message, /Объявление удалено/);
+});
+
+test('removes a restored cache entry without calling FunPay', async () => {
+  const offer = {
+    ...createOffer(),
+    active: false,
+    restoredFromCache: true
+  };
+  const profile = createProfile(offer);
+  const messages = [];
+  const view = createView(messages);
+  view.confirmDelete = async () => true;
+  let networkCalls = 0;
+  let removedFromCache;
+  const controller = new SellerDashboardController({
+    profile,
+    view,
+    client: {
+      async deleteOffer() {
+        networkCalls += 1;
+      }
+    },
+    offerStore: {
+      async removeOffer(userId, offerId) {
+        removedFromCache = { userId, offerId };
+      }
+    }
+  });
+
+  await controller.deleteOffer(offer);
+
+  assert.equal(networkCalls, 0);
+  assert.deepEqual(removedFromCache, {
+    userId: '42',
+    offerId: offer.offerId
+  });
+  assert.deepEqual(profile.groups[0].offers, []);
+  assert.equal(view.removedOfferId, offer.offerId);
+  assert.equal(messages.at(-1).message, 'Локальная запись убрана.');
 });
 
 function createOffer() {
@@ -81,14 +127,14 @@ function createOffer() {
     title: 'Тестовое объявление',
     titleKey: 'тестовое объявление',
     categoryKey: 'chatgpt прочее',
-    active: true
+    active: true,
+    restoredFromCache: false
   };
 }
 
 function createProfile(offer) {
   return {
     profileUserId: '42',
-    csrfToken: 'csrf',
     groups: [{
       nodeId: offer.nodeId,
       offers: [offer]

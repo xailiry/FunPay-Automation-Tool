@@ -29,7 +29,6 @@
 
     return {
       appData,
-      csrfToken: appData['csrf-token'] || '',
       currentUserId: String(appData.userId || ''),
       profileUserId,
       isOwnProfile,
@@ -85,6 +84,7 @@
         location.origin
       ).toString(),
       active: true,
+      restoredFromCache: false,
       element,
       wrapper: null,
       salesElement: null

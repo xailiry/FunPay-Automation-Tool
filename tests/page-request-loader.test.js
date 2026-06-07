@@ -1,10 +1,94 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import vm from 'node:vm';
 
 import {
   PageRequestLoader,
+  performOfferDeletion,
   performPageRequest
 } from '../background/page-request-loader.js';
+
+test('offer deletion function submits the verified editor form contract', async () => {
+  let capturedRequest;
+  const fields = {
+    offer_id: { value: '70464942' },
+    node_id: { value: '1356' },
+    deleted: { value: '' }
+  };
+  const form = {
+    getAttribute(name) {
+      return name === 'action' ? '/lots/offerSave' : null;
+    },
+    querySelector(selector) {
+      return fields[selector.match(/name="([^"]+)"/)?.[1]] || null;
+    }
+  };
+  const serializedForm = {
+    csrf_token: 'live-form-token',
+    form_created_at: '1780841398',
+    offer_id: '70464942',
+    node_id: '1356',
+    location: '',
+    deleted: '1',
+    'fields[summary][ru]': 'Тестовое объявление',
+    price: '99999',
+    amount: '999',
+    active: 'on'
+  };
+  const pageJquery = (target) => {
+    assert.equal(target, form);
+    return {
+      serializeObject() {
+        assert.equal(fields.deleted.value, '1');
+        return serializedForm;
+      }
+    };
+  };
+  pageJquery.ajax = (options) => {
+    capturedRequest = options;
+    options.success(
+      { done: true },
+      'success',
+      {
+        status: 200,
+        responseURL: 'https://funpay.com/lots/offerSave'
+      }
+    );
+  };
+  const contextFunction = vm.runInNewContext(
+    `(${performOfferDeletion.toString()})`,
+    {
+      Promise,
+      URL,
+      location: { origin: 'https://funpay.com' },
+      document: {
+        querySelector() {
+          return form;
+        }
+      },
+      globalThis: {
+        app: {
+          processRoute(route) {
+            return route;
+          }
+        },
+        jQuery: pageJquery
+      }
+    }
+  );
+
+  const result = await contextFunction({
+    offerId: '70464942',
+    nodeId: '1356'
+  });
+
+  assert.equal(capturedRequest.type, 'POST');
+  assert.equal(capturedRequest.url, 'https://funpay.com/lots/offerSave');
+  assert.equal(capturedRequest.dataType, 'json');
+  assert.equal(capturedRequest.data, serializedForm);
+  assert.equal(JSON.parse(result.text).done, true);
+  assert.equal(result.status, 200);
+});
 
 test('runs an allowed FunPay request in the main world of the current tab', async () => {
   let options;
@@ -125,27 +209,11 @@ test('allows the exact extension GET and POST routes only', async () => {
       method: 'GET'
     }
   }, sender);
-  await loader.request({
-    request: {
-      url: 'https://funpay.com/offer/delete',
-      method: 'POST',
-      entries: [
-        ['action', 'delete'],
-        ['type', 'lot'],
-        ['offer_id', '69189264']
-      ]
-    }
-  }, sender);
 
-  assert.equal(requests.length, 4);
+  assert.equal(requests.length, 3);
   assert.deepEqual(openedUrls, ['https://funpay.com/lots/offerEdit?node=4187']);
   assert.deepEqual(requests[1].entries, [['node_id', '4093']]);
   assert.equal(requests[2].url, 'https://funpay.com/orders/trade');
-  assert.deepEqual(requests[3].entries, [
-    ['action', 'delete'],
-    ['type', 'lot'],
-    ['offer_id', '69189264']
-  ]);
 
   await assert.rejects(
     loader.request({
@@ -171,6 +239,16 @@ test('allows the exact extension GET and POST routes only', async () => {
     loader.request({
       request: {
         url: 'https://funpay.com/account/logout',
+        method: 'POST'
+      }
+    }, sender),
+    /Недопустимый запрос/
+  );
+
+  await assert.rejects(
+    loader.request({
+      request: {
+        url: 'https://funpay.com/offer/delete',
         method: 'POST'
       }
     }, sender),
@@ -261,6 +339,58 @@ test('loads target form through an inactive document tab and closes it', async (
   });
 
   assert.match(result.text, /offerSave/);
+  assert.deepEqual(removed, [77]);
+});
+
+test('deletes an offer inside its verified editor tab and closes it', async () => {
+  const removed = [];
+  let executionOptions;
+  const tabs = createTabs({
+    createdTab: { id: 77, status: 'complete' },
+    onCreate(options) {
+      assert.equal(
+        options.url,
+        'https://funpay.com/lots/offerEdit?node=1356&offer=70464942'
+      );
+      assert.equal(options.active, false);
+    },
+    onRemove(tabId) {
+      removed.push(tabId);
+    }
+  });
+  const loader = new PageRequestLoader({
+    scripting: {
+      async executeScript(options) {
+        executionOptions = options;
+        return [{
+          result: {
+            ok: true,
+            status: 200,
+            url: 'https://funpay.com/lots/offerSave',
+            text: '{"done":true}'
+          }
+        }];
+      }
+    },
+    tabs
+  });
+
+  const result = await loader.deleteOffer({
+    offerId: '70464942',
+    nodeId: '1356'
+  }, {
+    url: 'https://funpay.com/users/11360744/',
+    tab: { id: 42 }
+  });
+
+  assert.deepEqual(executionOptions.target, { tabId: 77 });
+  assert.equal(executionOptions.world, 'MAIN');
+  assert.equal(executionOptions.func, performOfferDeletion);
+  assert.deepEqual(executionOptions.args, [{
+    offerId: '70464942',
+    nodeId: '1356'
+  }]);
+  assert.equal(result.status, 200);
   assert.deepEqual(removed, [77]);
 });
 

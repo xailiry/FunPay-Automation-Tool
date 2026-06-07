@@ -81,6 +81,20 @@
   gap: 10px;
 }
 
+.fp-seller-dashboard__action-column {
+  display: flex;
+  align-self: stretch;
+  align-items: flex-end;
+  flex-direction: column;
+}
+
+.fp-seller-dashboard__help {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .fp-seller-refresh {
   min-height: 36px;
   padding: 8px 13px;
@@ -435,7 +449,24 @@
 
 .fp-seller-banner-content span {
   font-size: 12px;
-  opacity: 0.85;
+}
+
+.fp-seller-help-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-left: 6px;
+  color: #e5a822;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 3px;
+  transition: color 150ms ease;
+}
+
+.fp-seller-help-link:hover {
+  color: #c78d10;
 }
 
 .fp-seller-banner-close {
@@ -534,6 +565,10 @@
 .fp-seller-offer.is-inactive {
   background: #fffaf0;
   border-left: 3px solid #ffda70;
+}
+
+.fp-seller-offer.is-restored .fp-seller-offer__type {
+  color: #9a6a0a;
 }
 
 .fp-seller-offer.is-busy {

@@ -39,10 +39,24 @@ test('hydrates cached offers as inactive and keeps current offers active', async
   await store.hydrate(profile);
 
   assert.deepEqual(
-    profile.groups[0].offers.map(({ offerId, active }) => ({ offerId, active })),
+    profile.groups[0].offers.map(
+      ({ offerId, active, restoredFromCache }) => ({
+        offerId,
+        active,
+        restoredFromCache
+      })
+    ),
     [
-      { offerId: 'current', active: true },
-      { offerId: 'inactive', active: false }
+      {
+        offerId: 'current',
+        active: true,
+        restoredFromCache: false
+      },
+      {
+        offerId: 'inactive',
+        active: false,
+        restoredFromCache: true
+      }
     ]
   );
   assert.equal(
@@ -123,6 +137,7 @@ function createStorage(initialState) {
 function profileOffer(offerId) {
   return {
     ...storedOffer(offerId, true, 0),
+    restoredFromCache: false,
     element: {},
     wrapper: null,
     salesElement: null

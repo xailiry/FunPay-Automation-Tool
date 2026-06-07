@@ -34,6 +34,11 @@ input {
   border-bottom: 1px solid var(--border);
 }
 
+.app-header__copy {
+  min-width: 0;
+  flex: 1;
+}
+
 .brand-mark {
   display: grid;
   width: 34px;
@@ -56,6 +61,25 @@ input {
   margin: 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+.header-help {
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: #8b5c00;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.header-help:hover {
+  text-decoration: underline;
+}
+
+.header-help:focus-visible {
+  outline: 3px solid rgba(216, 155, 25, 0.22);
+  outline-offset: 3px;
 }
 
 main {

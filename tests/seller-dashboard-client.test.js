@@ -28,8 +28,8 @@ globalThis.FunPayAutomation = {
         response: {
           ok: true,
           status: 200,
-          url: 'https://funpay.com/offer/delete',
-          text: '{"success":true}'
+          url: 'https://funpay.com/lots/offerSave',
+          text: '{"done":true}'
         }
       };
     },
@@ -43,26 +43,19 @@ await import('../content/seller-dashboard-client.js');
 
 const { SellerDashboardClient } = globalThis.FunPayAutomation;
 
-test('uses the official FunPay offer deletion payload', async () => {
+test('requests deletion through the verified offer editor flow', async () => {
   const client = new SellerDashboardClient();
 
   await client.deleteOffer({
     offerId: '69880658',
-    csrfToken: 'csrf-token'
+    nodeId: '1356'
   });
 
-  assert.equal(capturedMessage.action, 'requestFunPayPage');
-  assert.equal(
-    capturedMessage.request.url,
-    'https://funpay.com/offer/delete'
-  );
-  assert.equal(capturedMessage.request.method, 'POST');
-  assert.deepEqual(capturedMessage.request.entries, [
-    ['csrf_token', 'csrf-token'],
-    ['action', 'delete'],
-    ['type', 'lot'],
-    ['offer_id', '69880658']
-  ]);
+  assert.deepEqual(capturedMessage, {
+    action: 'deleteFunPayOffer',
+    offerId: '69880658',
+    nodeId: '1356'
+  });
 });
 
 test('requests a bump through the client boundary', async () => {

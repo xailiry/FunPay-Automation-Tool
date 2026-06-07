@@ -7,8 +7,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const bumpActivityTime = document.getElementById('bump-activity-time');
   const multiPostActivityText = document.getElementById('multipost-activity-text');
   const multiPostActivityTime = document.getElementById('multipost-activity-time');
+  const userGuideButton = document.getElementById('open-user-guide');
 
   refreshState();
+  userGuideButton.addEventListener('click', () => {
+    globalThis.FunPayUserGuide.open();
+  });
 
   autoBumpToggle.addEventListener('change', async () => {
     autoBumpToggle.disabled = true;
@@ -25,7 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       showStatus(
         autoBumpToggle.checked
-          ? 'Авто-поднятие включено. Следующая проверка через 4 часа.'
+          ? `Авто-поднятие включено. Следующая проверка ${formatRemainingTime(
+            response.nextAutoBumpAt
+          )}.`
           : 'Авто-поднятие выключено.',
         'success'
       );
@@ -153,4 +159,19 @@ function formatTime(timestamp) {
   return sameDay
     ? date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
     : date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+}
+
+function formatRemainingTime(timestamp) {
+  const remainingMs = Number(timestamp) - Date.now();
+  if (!Number.isFinite(remainingMs) || remainingMs <= 60_000) {
+    return 'в ближайшее время';
+  }
+
+  const totalMinutes = Math.ceil(remainingMs / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) return `примерно через ${minutes} мин.`;
+  if (minutes === 0) return `примерно через ${hours} ч.`;
+  return `примерно через ${hours} ч. ${minutes} мин.`;
 }

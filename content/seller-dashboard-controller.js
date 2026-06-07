@@ -128,30 +128,36 @@
       const confirmed = await this.view.confirmDelete(offer);
       if (!confirmed) return;
 
-      if (!this.profile.csrfToken) {
-        this.view.showToast(
-          'Не найден CSRF-токен FunPay. Обновите страницу и повторите.',
-          'error'
+      this.view.setBusyOffer(offer.offerId, true);
+
+      if (offer.restoredFromCache) {
+        const cacheUpdated = await this.updateOfferCache(() =>
+          this.offerStore?.removeOffer(
+            this.profile.profileUserId,
+            offer.offerId
+          )
         );
+        if (!cacheUpdated) {
+          this.view.setBusyOffer(offer.offerId, false);
+          this.view.showToast(
+            'Не удалось убрать локальную запись. Попробуйте перезагрузить страницу.',
+            'error'
+          );
+          return;
+        }
+
+        this.removeOfferFromProfile(offer);
+        this.view.showToast('Локальная запись убрана.', 'success');
+        this.renderOffers();
         return;
       }
-
-      this.view.setBusyOffer(offer.offerId, true);
 
       try {
         await this.client.deleteOffer({
           offerId: offer.offerId,
-          csrfToken: this.profile.csrfToken
+          nodeId: offer.nodeId
         });
-        const group = this.profile.groups.find(
-          (item) => item.nodeId === offer.nodeId
-        );
-        this.view.removeOffer(offer.offerId);
-        if (group) {
-          group.offers = group.offers.filter(
-            (item) => item.offerId !== offer.offerId
-          );
-        }
+        this.removeOfferFromProfile(offer);
         const cacheUpdated = await this.updateOfferCache(() =>
           this.offerStore?.removeOffer(
             this.profile.profileUserId,
@@ -170,6 +176,18 @@
         this.view.showToast(
           error instanceof Error ? error.message : String(error),
           'error'
+        );
+      }
+    }
+
+    removeOfferFromProfile(offer) {
+      const group = this.profile.groups.find(
+        (item) => item.nodeId === offer.nodeId
+      );
+      this.view.removeOffer(offer.offerId);
+      if (group) {
+        group.offers = group.offers.filter(
+          (item) => item.offerId !== offer.offerId
         );
       }
     }
@@ -226,6 +244,7 @@
             active: change.active
           });
           change.offer.active = change.active;
+          if (change.active) change.offer.restoredFromCache = false;
           this.view.setOfferActive(offerId, change.active);
           const cacheUpdated = await this.updateOfferCache(() =>
             this.offerStore?.updateOfferStatus(
