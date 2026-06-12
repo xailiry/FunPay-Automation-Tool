@@ -162,6 +162,48 @@ test('rejects requests outside the sender FunPay origin', async () => {
   );
 });
 
+test('forwards only headers required by verified FunPay requests', async () => {
+  let options;
+  const loader = new PageRequestLoader({
+    scripting: {
+      async executeScript(nextOptions) {
+        options = nextOptions;
+        return [{
+          result: {
+            ok: true,
+            status: 200,
+            url: 'https://funpay.com/lots/offerSave',
+            text: '{}'
+          }
+        }];
+      }
+    },
+    tabs: createTabs()
+  });
+
+  await loader.request({
+    request: {
+      url: 'https://funpay.com/lots/offerSave',
+      method: 'POST',
+      entries: [['node_id', '4093']],
+      headers: {
+        accept: 'application/json',
+        'x-requested-with': 'XMLHttpRequest',
+        authorization: 'must-not-cross-the-boundary',
+        cookie: 'must-not-cross-the-boundary'
+      }
+    }
+  }, {
+    url: 'https://funpay.com/lots/1356/trade',
+    tab: { id: 42 }
+  });
+
+  assert.deepEqual(options.args[0].headers, {
+    accept: 'application/json',
+    'x-requested-with': 'XMLHttpRequest'
+  });
+});
+
 test('allows the exact extension GET and POST routes only', async () => {
   const requests = [];
   const openedUrls = [];

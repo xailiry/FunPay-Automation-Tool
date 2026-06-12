@@ -28,6 +28,75 @@
       this.elements.refreshButton.addEventListener('click', handler);
     }
 
+    onPresetToggle(handler) {
+      this.elements.presetButton.addEventListener('click', () => {
+        const open = this.elements.presetPanel.hidden;
+        this.setPresetPanelOpen(open);
+        handler(open);
+      });
+      this.elements.presetClose.addEventListener('click', () => {
+        this.setPresetPanelOpen(false);
+        handler(false);
+      });
+    }
+
+    onPresetSearch(handler) {
+      this.elements.presetSearch.addEventListener('input', (event) => {
+        handler(event.target.value);
+      });
+    }
+
+    setPresetPanelOpen(open) {
+      this.elements.presetPanel.hidden = !open;
+      this.elements.presetButton.setAttribute('aria-expanded', String(open));
+      if (open) this.elements.presetSearch.focus();
+    }
+
+    renderPresets({ presets, total, onApply }) {
+      const list = this.elements.presetList;
+      list.replaceChildren();
+      this.elements.presetMeta.textContent =
+        total > 0
+          ? `Показано: ${presets.length} из ${total}`
+          : 'Создать пресеты можно в разделе «Объявления» центра управления.';
+
+      if (presets.length === 0) {
+        list.appendChild(
+          createEmptyState(
+            total > 0
+              ? 'По этому запросу пресеты не найдены.'
+              : 'Сохранённых пресетов пока нет.'
+          )
+        );
+        return;
+      }
+
+      for (const preset of presets) {
+        const item = document.createElement('article');
+        item.className = 'fp-preset';
+        const copy = document.createElement('div');
+        copy.className = 'fp-preset__copy';
+        const title = document.createElement('strong');
+        title.textContent = preset.name;
+        const meta = document.createElement('span');
+        meta.textContent = `${preset.categories.length} категорий`;
+        const categories = document.createElement('small');
+        categories.textContent = preset.categories
+          .slice(0, 4)
+          .map((category) => category.name)
+          .join(' · ');
+        copy.append(title, meta, categories);
+
+        const apply = document.createElement('button');
+        apply.type = 'button';
+        apply.className = 'fp-preset__apply';
+        apply.textContent = 'Применить';
+        apply.addEventListener('click', () => onApply(preset));
+        item.append(copy, apply);
+        list.append(item);
+      }
+    }
+
     setCategoriesLoading(loading) {
       this.elements.refreshButton.disabled = loading;
 
@@ -130,10 +199,15 @@
       this.panel.classList.toggle('is-busy', busy);
       this.elements.searchInput.disabled = busy;
       this.elements.refreshButton.disabled = busy;
+      this.elements.presetButton.disabled = busy;
+      this.elements.presetSearch.disabled = busy;
       this.elements.categoryList.querySelectorAll('input').forEach((input) => {
         input.disabled = busy;
       });
       this.elements.selectedList.querySelectorAll('button').forEach((button) => {
+        button.disabled = busy;
+      });
+      this.elements.presetList.querySelectorAll('button').forEach((button) => {
         button.disabled = busy;
       });
     }
@@ -183,10 +257,38 @@
             и не отправит параметры, которых в целевой форме нет.
           </p>
         </div>
-        <button class="fp-icon-button" type="button" id="fp-refresh-categories" title="Обновить категории">
-          Обновить
-        </button>
+        <div class="fp-panel__actions">
+          <button
+            class="fp-icon-button"
+            type="button"
+            id="fp-open-presets"
+            aria-expanded="false"
+            aria-controls="fp-preset-panel"
+          >Пресеты</button>
+          <button class="fp-icon-button" type="button" id="fp-refresh-categories" title="Обновить категории">
+            Обновить
+          </button>
+        </div>
       </div>
+
+      <section class="fp-preset-panel" id="fp-preset-panel" hidden>
+        <div class="fp-preset-panel__header">
+          <div>
+            <strong>Пресеты мультипостинга</strong>
+            <span>Выберите готовый набор, чтобы добавить его категории справа.</span>
+          </div>
+          <button class="fp-preset-panel__close" type="button">Закрыть</button>
+        </div>
+        <input
+          class="fp-search"
+          id="fp-preset-search"
+          type="search"
+          autocomplete="off"
+          placeholder="Найти пресет или категорию"
+        >
+        <div class="fp-list-meta" id="fp-preset-meta"></div>
+        <div class="fp-preset-list" id="fp-preset-list"></div>
+      </section>
 
       <div class="fp-panel__body">
         <div class="fp-picker">
@@ -232,6 +334,12 @@
       selectedList: panel.querySelector('#fp-selected-list'),
       selectedCount: panel.querySelector('#fp-selected-count'),
       refreshButton: panel.querySelector('#fp-refresh-categories'),
+      presetButton: panel.querySelector('#fp-open-presets'),
+      presetPanel: panel.querySelector('#fp-preset-panel'),
+      presetClose: panel.querySelector('.fp-preset-panel__close'),
+      presetSearch: panel.querySelector('#fp-preset-search'),
+      presetMeta: panel.querySelector('#fp-preset-meta'),
+      presetList: panel.querySelector('#fp-preset-list'),
       progress: panel.querySelector('#fp-progress'),
       progressBar: panel.querySelector('#fp-progress-bar'),
       progressText: panel.querySelector('#fp-progress-text'),

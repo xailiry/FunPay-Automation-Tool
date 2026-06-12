@@ -1,6 +1,7 @@
 (() => {
   const namespace = globalThis.FunPayAutomation;
   const Config = namespace.Config;
+  const Presets = globalThis.FunPayAutomationPresets;
   const {
     createMultiPostSummary,
     delay,
@@ -26,6 +27,8 @@
       this.categories = [];
       this.selectedCategories = new Map();
       this.searchQuery = '';
+      this.presetSearchQuery = '';
+      this.options = Presets.normalizeOffersSettings();
       this.isRunning = false;
       this.allowNativeSubmit = false;
       this.submitButton = findSubmitButton(form);
@@ -41,10 +44,35 @@
         this.renderCategories();
       });
       this.view.onRefresh(() => this.loadCategories(true));
+      this.view.onPresetToggle((open) => {
+        if (open) void this.loadSettings();
+      });
+      this.view.onPresetSearch((query) => {
+        this.presetSearchQuery = query;
+        this.renderPresets();
+      });
       this.form.addEventListener('submit', this.handleSubmit, true);
 
       this.renderSelection();
-      void this.loadCategories(false);
+      this.renderPresets();
+      void this.initializeData();
+    }
+
+    async initializeData() {
+      await this.loadSettings();
+      await this.loadCategories(false);
+    }
+
+    async loadSettings() {
+      try {
+        const stored = await this.storage.get(['toolbarSettings']);
+        this.options = Presets.normalizeOffersSettings(
+          stored.toolbarSettings?.offers
+        );
+      } catch {
+        this.options = Presets.normalizeOffersSettings();
+      }
+      this.renderPresets();
     }
 
     async handleSubmit(event) {
@@ -136,7 +164,7 @@
             status: 'failed',
             message: getErrorMessage(error)
           });
-          break;
+          if (this.options.stopOnError) break;
         }
 
         this.view.updateProgress(
@@ -146,7 +174,7 @@
         );
 
         if (index < targets.length - 1) {
-          await delay(Config.multiPostDelayMs);
+          await delay(this.options.multipostDelayMs);
         }
       }
 
@@ -210,6 +238,7 @@
 
         this.categories = categories;
         this.renderCategories();
+        this.renderPresets();
       } catch (error) {
         const message = getErrorMessage(error);
         this.view.setCategoryMeta(message);
@@ -247,9 +276,9 @@
         return true;
       }
 
-      if (this.selectedCategories.size >= Config.maxMultiPostTargets) {
+      if (this.selectedCategories.size >= this.options.maxTargets) {
         this.view.showNotice(
-          `За один запуск можно выбрать не больше ${Config.maxMultiPostTargets} категорий.`,
+          `За один запуск можно выбрать не больше ${this.options.maxTargets} категорий.`,
           'warning'
         );
         return false;
@@ -258,6 +287,50 @@
       this.selectedCategories.set(category.id, category);
       this.renderSelection();
       return true;
+    }
+
+    applyPreset(preset) {
+      if (this.isRunning) return;
+      const currentNodeId = getCurrentNodeId(this.form);
+      const categories = Presets.resolvePresetCategories(
+        preset,
+        this.categories,
+        currentNodeId
+      );
+      let added = 0;
+      let skipped = 0;
+
+      for (const category of categories) {
+        if (this.selectedCategories.has(category.id)) continue;
+        if (this.selectedCategories.size >= this.options.maxTargets) {
+          skipped += 1;
+          continue;
+        }
+        this.selectedCategories.set(category.id, category);
+        added += 1;
+      }
+
+      this.renderSelection();
+      this.renderCategories();
+      this.view.setPresetPanelOpen(false);
+      this.view.showNotice(
+        skipped > 0
+          ? `Пресет «${preset.name}» применён. Добавлено: ${added}, не поместилось из-за лимита: ${skipped}.`
+          : `Пресет «${preset.name}» применён. Добавлено категорий: ${added}.`,
+        skipped > 0 ? 'warning' : 'success'
+      );
+    }
+
+    renderPresets() {
+      const presets = Presets.filterPresets(
+        this.options.presets,
+        this.presetSearchQuery
+      );
+      this.view.renderPresets({
+        presets,
+        total: this.options.presets.length,
+        onApply: (preset) => this.applyPreset(preset)
+      });
     }
 
     async editCategory(categoryId) {

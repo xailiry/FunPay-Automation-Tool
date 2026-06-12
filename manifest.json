@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "FunPay Automation Tool",
-  "version": "2.5.1",
-  "description": "Панель продавца, метрики, авто-поднятие и управляемый мультипостинг для FunPay.",
+  "version": "3.0.0",
+  "version_name": "3.0 Preview 1",
+  "description": "Центр управления продавца: объявления, сообщения, мультипостинг, темы и автоматизация FunPay.",
   "permissions": [
     "storage",
     "alarms",
@@ -21,19 +22,79 @@
   "content_scripts": [
     {
       "matches": [
-        "https://funpay.com/lots/offer*",
-        "https://*.funpay.com/lots/offer*"
+        "https://funpay.com/*",
+        "https://*.funpay.com/*"
+      ],
+      "js": ["toolbar/theme-bootstrap.js"],
+      "css": [],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://funpay.com/*",
+        "https://*.funpay.com/*"
       ],
       "js": [
         "content/shared.js",
         "content/category-catalog.js",
+        "multipost-presets.js",
+        "bump-countdown.js",
+        "toolbar/config.js",
+        "toolbar/store.js",
+        "toolbar/theme.js",
+        "toolbar/adapters.js",
+        "toolbar/calculations.js",
+        "toolbar/components.js",
+        "toolbar/styles.js",
+        "toolbar/shell.js",
+        "toolbar/sections/overview.js",
+        "toolbar/sections/offers.js",
+        "toolbar/sections/messages.js",
+        "toolbar/sections/orders.js",
+        "toolbar/sections/appearance.js",
+        "toolbar/sections/calculators.js",
+        "toolbar/sections/notifications.js",
+        "toolbar/sections/diagnostics.js",
+        "toolbar/sections/help.js",
+        "toolbar/controller.js",
+        "toolbar/entry.js"
+      ],
+      "css": [],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://funpay.com/lots/offer*",
+        "https://*.funpay.com/lots/offer*"
+      ],
+      "js": [
         "content/form-adapter.js",
         "content/offer-client.js",
         "content/multipost-view.js",
         "content/multipost-controller.js",
+        "content/buyer-price-core.js",
+        "content/buyer-price.js",
         "content.js"
       ],
       "css": ["content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://funpay.com/chat/*",
+        "https://*.funpay.com/chat/*",
+        "https://funpay.com/orders/*",
+        "https://*.funpay.com/orders/*"
+      ],
+      "js": [
+        "content/chat-manager-core.js",
+        "content/chat-manager-store.js",
+        "content/chat-manager-context.js",
+        "content/chat-manager-view.js",
+        "content/chat-manager-controller.js",
+        "chat-manager.js"
+      ],
+      "css": ["chat-manager.css"],
       "run_at": "document_idle"
     },
     {
@@ -42,8 +103,6 @@
         "https://*.funpay.com/users/*"
       ],
       "js": [
-        "content/shared.js",
-        "user-guide.js",
         "content/seller-dashboard-data.js",
         "content/seller-offer-store.js",
         "content/seller-dashboard-client.js",
@@ -52,7 +111,19 @@
         "content/seller-dashboard-controller.js",
         "seller-dashboard.js"
       ],
-      "css": ["seller-dashboard.css", "user-guide.css"],
+      "css": ["seller-dashboard.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://funpay.com/*",
+        "https://*.funpay.com/*"
+      ],
+      "js": [
+        "content/order-scenarios-core.js",
+        "content/order-scenarios.js"
+      ],
+      "css": [],
       "run_at": "document_idle"
     }
   ],

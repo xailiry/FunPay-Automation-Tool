@@ -27,6 +27,7 @@ const messageHandlers = new Map([
   ['getExtensionState', getExtensionState],
   ['setAutoBump', ({ enabled }) => autoBumpScheduler.setEnabled(Boolean(enabled))],
   ['triggerBumpNow', () => autoBumpScheduler.runManually()],
+  ['openToolbar', ({ sectionId }) => openToolbar(sectionId)],
   [
     'requestFunPayPage',
     (message, sender) => pageRequestLoader.request(message, sender)
@@ -72,6 +73,7 @@ async function getExtensionState() {
   const stored = await storage.get([
     'autoBumpEnabled',
     'nextAutoBumpAt',
+    'nextBumpAvailableAt',
     'lastBumpResult',
     'lastMultiPostResult'
   ]);
@@ -80,10 +82,12 @@ async function getExtensionState() {
   if (lastBumpResult !== stored.lastBumpResult) {
     await storage.set({ lastBumpResult });
   }
+  const availability = await autoBumpScheduler.getAvailabilityState();
 
   return {
     autoBumpEnabled: Boolean(stored.autoBumpEnabled),
     nextAutoBumpAt: stored.nextAutoBumpAt || null,
+    nextBumpAvailableAt: availability.nextBumpAvailableAt,
     bumpRunning: bumpService.isRunning,
     lastBumpResult,
     lastMultiPostResult: stored.lastMultiPostResult || null
@@ -94,9 +98,79 @@ function createSuccessResponse(action, result) {
   if (action === 'getExtensionState') return { ok: true, ...result };
   if (action === 'setAutoBump') return { ok: true, ...result };
   if (action === 'triggerBumpNow') return { ok: true, result };
+  if (action === 'openToolbar') return { ok: true, ...result };
   if (action === 'requestFunPayPage') return { ok: true, response: result };
   if (action === 'deleteFunPayOffer') return { ok: true, response: result };
   return { ok: true };
+}
+
+async function openToolbar(sectionId) {
+  const activeTabs = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+  let tab = activeTabs.find((item) => isFunPayUrl(item.url));
+
+  if (!tab) {
+    const funPayTabs = await chrome.tabs.query({
+      url: ['https://funpay.com/*', 'https://*.funpay.com/*']
+    });
+    tab = funPayTabs[0];
+  }
+
+  if (!tab) {
+    tab = await chrome.tabs.create({
+      url: 'https://funpay.com/',
+      active: true
+    });
+    await waitForTabReady(tab.id);
+  } else if (!tab.active) {
+    tab = await chrome.tabs.update(tab.id, { active: true });
+  }
+
+  await sendToolbarMessage(tab.id, {
+    action: 'openToolbar',
+    sectionId
+  });
+  return { tabId: tab.id };
+}
+
+async function sendToolbarMessage(tabId, message) {
+  let lastError;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await chrome.tabs.sendMessage(tabId, message);
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  throw lastError || new Error('Не удалось открыть центр управления.');
+}
+
+function waitForTabReady(tabId) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error('FunPay загружается слишком долго.'));
+    }, 20_000);
+    const listener = (updatedTabId, changeInfo) => {
+      if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+function isFunPayUrl(url) {
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname === 'funpay.com' || hostname.endsWith('.funpay.com');
+  } catch {
+    return false;
+  }
 }
 
 function initializeAutoBump() {

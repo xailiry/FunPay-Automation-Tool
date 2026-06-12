@@ -80,3 +80,21 @@ test('requests a bump through the client boundary', async () => {
   assert.deepEqual(message, { action: 'triggerBumpNow' });
   assert.equal(result.successCount, 2);
 });
+
+test('requests the shared bump availability state', async () => {
+  let message;
+  const client = new SellerDashboardClient({
+    messenger: async (nextMessage) => {
+      message = nextMessage;
+      return {
+        ok: true,
+        nextBumpAvailableAt: 12345
+      };
+    }
+  });
+
+  const state = await client.getExtensionState();
+
+  assert.deepEqual(message, { action: 'getExtensionState' });
+  assert.equal(state.nextBumpAvailableAt, 12345);
+});

@@ -10,7 +10,8 @@ test('enabling after a recent manual run waits only for the remaining time', asy
   const storage = createStorage({
     lastBumpResult: {
       status: 'completed',
-      finishedAt: now - 40 * 60 * 1000
+      finishedAt: now - 40 * 60 * 1000,
+      successCount: 1
     }
   });
   const alarms = createAlarms();
@@ -36,7 +37,7 @@ test('a missed launch runs once on startup and schedules the next attempt', asyn
     now,
     run: async () => {
       runs += 1;
-      return { status: 'completed' };
+      return { status: 'completed', successCount: 1 };
     }
   });
 
@@ -76,18 +77,53 @@ test('manual bump reschedules auto bump four hours after completion', async () =
     now: () => now,
     run: async () => {
       now += 2 * 60 * 1000;
-      return { status: 'completed' };
+      return { status: 'completed', successCount: 1 };
     }
   });
 
   await scheduler.runManually();
 
   assert.equal(storage.state.nextAutoBumpAt, now + 4 * HOUR);
+  assert.equal(storage.state.nextBumpAvailableAt, now + 4 * HOUR);
 });
 
-test('critical errors do not cause an immediate retry loop', async () => {
+test('cooldown attempts preserve the availability timer', async () => {
   const now = 10 * HOUR;
-  const storage = createStorage({ autoBumpEnabled: true });
+  const availableAt = now + 2 * HOUR;
+  const storage = createStorage({
+    autoBumpEnabled: true,
+    nextBumpAvailableAt: availableAt,
+    nextAutoBumpAt: availableAt
+  });
+  const alarms = createAlarms({
+    name: 'autoBumpAlarm',
+    scheduledTime: availableAt
+  });
+  const scheduler = createScheduler({
+    storage,
+    alarms,
+    now,
+    run: async () => ({
+      status: 'completed',
+      successCount: 0,
+      skippedCount: 2,
+      failedCount: 0
+    })
+  });
+
+  await scheduler.runManually();
+
+  assert.equal(storage.state.nextBumpAvailableAt, availableAt);
+  assert.equal(storage.state.nextAutoBumpAt, availableAt);
+});
+
+test('critical errors preserve availability and do not cause an immediate retry loop', async () => {
+  const now = 10 * HOUR;
+  const previousAvailability = now - HOUR;
+  const storage = createStorage({
+    autoBumpEnabled: true,
+    nextBumpAvailableAt: previousAvailability
+  });
   const alarms = createAlarms();
   let runs = 0;
   let reportedErrors = 0;
@@ -108,6 +144,7 @@ test('critical errors do not cause an immediate retry loop', async () => {
 
   assert.equal(runs, 1);
   assert.equal(reportedErrors, 1);
+  assert.equal(storage.state.nextBumpAvailableAt, previousAvailability);
   assert.equal(storage.state.nextAutoBumpAt, now + 4 * HOUR);
   assert.equal(alarms.current.scheduledTime, now + 4 * HOUR);
 });

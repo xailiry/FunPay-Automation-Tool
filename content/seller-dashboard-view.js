@@ -21,6 +21,7 @@
       this.materializeCachedOffers(section);
       this.decorateOffers();
       this.bindControls();
+      this.startBumpCountdown();
     }
 
     onFiltersChange(handler) {
@@ -224,6 +225,24 @@
     setBumpState(loading) {
       this.elements.bump.disabled = loading;
       this.elements.bump.textContent = loading ? 'Поднимаем...' : 'Поднять товары';
+    }
+
+    setBumpAvailability(timestamp) {
+      this.nextBumpAvailableAt = timestamp;
+      this.renderBumpCountdown();
+    }
+
+    startBumpCountdown() {
+      this.renderBumpCountdown();
+      this.bumpCountdownTimer ||= window.setInterval(
+        () => this.renderBumpCountdown(),
+        15_000
+      );
+    }
+
+    renderBumpCountdown() {
+      this.elements.bumpCountdown.textContent =
+        globalThis.FunPayBumpCountdown.format(this.nextBumpAvailableAt);
     }
 
     showToast(message, type = '') {
@@ -451,10 +470,6 @@
     }
 
     bindControls() {
-      this.elements.help.addEventListener('click', () => {
-        globalThis.FunPayUserGuide.open();
-      });
-
       const notifyFilters = () =>
         this.handlers.filtersChange?.(this.getFilterState());
       this.elements.search.addEventListener('input', notifyFilters);

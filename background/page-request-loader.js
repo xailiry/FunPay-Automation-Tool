@@ -299,10 +299,16 @@ function normalizeHeaders(headers) {
   return Object.fromEntries(
     Object.entries(headers)
       .filter(([name, value]) =>
-        typeof name === 'string' && typeof value === 'string'
+        typeof name === 'string' &&
+        typeof value === 'string' &&
+        isAllowedHeader(name)
       )
       .map(([name, value]) => [name.toLowerCase(), value])
   );
+}
+
+function isAllowedHeader(name) {
+  return ['accept', 'x-requested-with'].includes(name.toLowerCase());
 }
 
 function parseUrl(value) {

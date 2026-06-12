@@ -43,10 +43,15 @@ export class AutoBumpScheduler {
       };
     }
 
-    const stored = await this.storage.get(['lastBumpResult']);
-    const nextAt = this.getNextTimeFromResult(stored.lastBumpResult);
+    const stored = await this.storage.get([
+      'nextBumpAvailableAt',
+      'lastBumpResult'
+    ]);
+    const availableAt = this.getAvailabilityTime(stored);
+    const nextAt = availableAt > this.now() ? availableAt : this.now();
     await this.storage.set({
       autoBumpEnabled: true,
+      nextBumpAvailableAt: availableAt,
       nextAutoBumpAt: nextAt
     });
 
@@ -78,6 +83,7 @@ export class AutoBumpScheduler {
   async sync() {
     const stored = await this.storage.get([
       'autoBumpEnabled',
+      'nextBumpAvailableAt',
       'nextAutoBumpAt',
       'lastBumpResult'
     ]);
@@ -87,11 +93,17 @@ export class AutoBumpScheduler {
       return;
     }
 
+    const availableAt = this.getAvailabilityTime(stored);
     const nextAt = isValidTimestamp(stored.nextAutoBumpAt)
       ? stored.nextAutoBumpAt
-      : this.getNextTimeFromResult(stored.lastBumpResult);
+      : availableAt > this.now()
+        ? availableAt
+        : this.now();
 
-    await this.storage.set({ nextAutoBumpAt: nextAt });
+    await this.storage.set({
+      nextBumpAvailableAt: availableAt,
+      nextAutoBumpAt: nextAt
+    });
 
     if (nextAt <= this.now()) {
       await this.runAndReschedule({ propagateError: false });
@@ -112,7 +124,7 @@ export class AutoBumpScheduler {
       this.onError(error);
     } finally {
       try {
-        await this.scheduleAfterAttempt();
+        await this.scheduleAfterAttempt(result);
       } catch (error) {
         this.onError(error);
       }
@@ -122,23 +134,63 @@ export class AutoBumpScheduler {
     return result;
   }
 
-  async scheduleAfterAttempt() {
+  async scheduleAfterAttempt(result) {
+    const successful = Number(result?.successCount) > 0;
+    let availableAt = await this.readAvailabilityTime();
+
+    if (successful) {
+      const completedAt = Number(result.finishedAt);
+      availableAt =
+        (Number.isFinite(completedAt) ? completedAt : this.now()) +
+        this.intervalMs;
+      await this.storage.set({ nextBumpAvailableAt: availableAt });
+    }
+
     const { autoBumpEnabled } = await this.storage.get(['autoBumpEnabled']);
     if (!autoBumpEnabled) {
       await this.alarms.clear(this.alarmName);
       return;
     }
 
-    const nextAt = this.now() + this.intervalMs;
+    const nextAt = availableAt > this.now()
+      ? availableAt
+      : this.now() + this.intervalMs;
     await this.storage.set({ nextAutoBumpAt: nextAt });
     await this.ensureAlarm(nextAt);
   }
 
-  getNextTimeFromResult(result) {
-    const completedAt = Number(result?.finishedAt || result?.startedAt);
+  async getAvailabilityState() {
+    const stored = await this.storage.get([
+      'nextBumpAvailableAt',
+      'lastBumpResult'
+    ]);
+    const nextBumpAvailableAt = this.getAvailabilityTime(stored);
+
+    if (nextBumpAvailableAt !== stored.nextBumpAvailableAt) {
+      await this.storage.set({ nextBumpAvailableAt });
+    }
+
+    return { nextBumpAvailableAt };
+  }
+
+  async readAvailabilityTime() {
+    const { nextBumpAvailableAt } = await this.getAvailabilityState();
+    return nextBumpAvailableAt;
+  }
+
+  getAvailabilityTime({ nextBumpAvailableAt, lastBumpResult }) {
+    if (isValidTimestamp(nextBumpAvailableAt)) {
+      return nextBumpAvailableAt;
+    }
+
+    if (Number(lastBumpResult?.successCount) <= 0) return null;
+
+    const completedAt = Number(
+      lastBumpResult?.finishedAt || lastBumpResult?.startedAt
+    );
     return Number.isFinite(completedAt)
       ? completedAt + this.intervalMs
-      : this.now() + this.intervalMs;
+      : null;
   }
 
   async ensureAlarm(when) {

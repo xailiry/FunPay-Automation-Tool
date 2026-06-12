@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+await import('../multipost-presets.js');
+
 globalThis.FunPayAutomation = {
   Config: {
     multiPostDelayMs: 0,
@@ -112,6 +114,71 @@ test('submits the original form after every copy succeeds', async () => {
   assert.equal(controller.selectedCategories.size, 0);
 });
 
+test('continues publishing after an error when stop-on-error is disabled', async () => {
+  const attempted = [];
+  const controller = new MultiPostController({
+    form: { addEventListener() {} },
+    view: createView(),
+    catalog: {},
+    client: {
+      async submitCopy(_form, target) {
+        attempted.push(target.nodeId);
+        if (target.nodeId === '1') throw new Error('first failed');
+        return {
+          nodeId: target.nodeId,
+          name: target.name,
+          status: 'success'
+        };
+      }
+    }
+  });
+  controller.options = {
+    ...controller.options,
+    multipostDelayMs: 300,
+    stopOnError: false
+  };
+
+  const results = await controller.publishCopies([
+    { nodeId: '1', name: 'First' },
+    { nodeId: '2', name: 'Second' }
+  ]);
+
+  assert.deepEqual(attempted, ['1', '2']);
+  assert.equal(results.length, 2);
+  assert.equal(results[0].status, 'failed');
+  assert.equal(results[1].status, 'success');
+});
+
+test('applies a preset as editable selected categories', () => {
+  const view = createView();
+  const controller = new MultiPostController({
+    form: { addEventListener() {} },
+    view,
+    catalog: {},
+    client: {}
+  });
+  controller.categories = [
+    { id: '4093', name: 'Gemini · Услуги', game: 'Gemini', section: 'Услуги' }
+  ];
+
+  controller.applyPreset({
+    id: 'ai',
+    name: 'ИИ-сервисы',
+    categories: [
+      { id: '4093', name: 'Старое название' },
+      { id: '1356', name: 'Текущая категория' }
+    ]
+  });
+
+  assert.equal(controller.selectedCategories.size, 1);
+  assert.equal(
+    controller.selectedCategories.get('4093').name,
+    'Gemini · Услуги'
+  );
+  assert.equal(view.presetPanelOpen, false);
+  assert.match(view.notice.message, /ИИ-сервисы/);
+});
+
 function createSubmitEvent() {
   return {
     submitter: { disabled: false },
@@ -123,6 +190,7 @@ function createSubmitEvent() {
 function createView() {
   return {
     notice: { message: '', type: '' },
+    presetPanelOpen: true,
     setBusy() {},
     setSubmitDisabled() {},
     showProgress() {},
@@ -130,9 +198,13 @@ function createView() {
     updateProgress() {},
     renderSelection() {},
     renderCategories() {},
+    renderPresets() {},
     setCategoryMeta() {},
     showNotice(message, type) {
       this.notice = { message, type };
+    },
+    setPresetPanelOpen(open) {
+      this.presetPanelOpen = open;
     }
   };
 }

@@ -26,11 +26,11 @@
         <div class="fp-seller-dashboard__action-column">
           <div class="fp-seller-dashboard__actions">
             <button class="fp-seller-refresh fp-seller-save" type="button" disabled>Сохранить изменения</button>
-            <button class="fp-seller-refresh fp-seller-bump" type="button">Поднять товары</button>
+            <div class="fp-seller-bump-control">
+              <button class="fp-seller-refresh fp-seller-bump" type="button">Поднять товары</button>
+              <span class="fp-seller-bump-countdown">Можно поднять сейчас</span>
+            </div>
             <button class="fp-seller-refresh fp-seller-sales-refresh" type="button">Обновить продажи</button>
-          </div>
-          <div class="fp-seller-dashboard__help">
-            <button type="button" class="fp-seller-help-link fp-seller-help">Справка</button>
           </div>
         </div>
       </header>
@@ -140,9 +140,9 @@
       status: panel.querySelector('[data-filter="status"]'),
       sort: panel.querySelector('[data-filter="sort"]'),
       save: panel.querySelector('.fp-seller-save'),
-      help: panel.querySelector('.fp-seller-help'),
       refresh: panel.querySelector('.fp-seller-sales-refresh'),
       bump: panel.querySelector('.fp-seller-bump'),
+      bumpCountdown: panel.querySelector('.fp-seller-bump-countdown'),
       resultCount: panel.querySelector('[data-result-count]'),
       empty: panel.querySelector('.fp-seller-empty'),
       toast: panel.querySelector('.fp-seller-toast'),

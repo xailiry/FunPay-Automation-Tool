@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const autoBumpToggle = document.getElementById('auto-bump-toggle');
   const bumpNowButton = document.getElementById('bump-now-button');
+  const bumpCountdown = document.getElementById('bump-countdown');
   const refreshStateButton = document.getElementById('refresh-state-button');
   const inlineStatus = document.getElementById('inline-status');
   const bumpActivityText = document.getElementById('bump-activity-text');
@@ -8,11 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const multiPostActivityText = document.getElementById('multipost-activity-text');
   const multiPostActivityTime = document.getElementById('multipost-activity-time');
   const userGuideButton = document.getElementById('open-user-guide');
+  const toolbarButton = document.getElementById('open-toolbar');
+  let nextBumpAvailableAt = null;
 
   refreshState();
-  userGuideButton.addEventListener('click', () => {
-    globalThis.FunPayUserGuide.open();
-  });
+  window.setInterval(renderBumpCountdown, 15_000);
+  userGuideButton.addEventListener('click', () => openToolbar('help'));
+  toolbarButton.addEventListener('click', () => openToolbar('overview'));
 
   autoBumpToggle.addEventListener('change', async () => {
     autoBumpToggle.disabled = true;
@@ -61,7 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
         result.failedCount ? `ошибок: ${result.failedCount}` : ''
       ].filter(Boolean).join(', ');
 
-      showStatus(message, result.failedCount ? 'warning' : 'success');
+      showStatus(
+        message,
+        result.successCount > 0 && result.failedCount === 0
+          ? 'success'
+          : 'warning'
+      );
     } catch (error) {
       showStatus(error.message, 'error');
     } finally {
@@ -81,6 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       autoBumpToggle.checked = Boolean(state.autoBumpEnabled);
+      nextBumpAvailableAt = state.nextBumpAvailableAt;
+      renderBumpCountdown();
       setBumpRunning(Boolean(state.bumpRunning));
       renderBumpActivity(state.lastBumpResult);
       renderMultiPostActivity(state.lastMultiPostResult);
@@ -130,10 +140,25 @@ document.addEventListener('DOMContentLoaded', () => {
     bumpNowButton.textContent = running ? 'Выполняется...' : 'Поднять сейчас';
   }
 
+  function renderBumpCountdown() {
+    bumpCountdown.textContent = globalThis.FunPayBumpCountdown.format(
+      nextBumpAvailableAt
+    );
+  }
+
   function showStatus(message, type) {
     inlineStatus.textContent = message;
     inlineStatus.className = 'inline-status';
     if (type) inlineStatus.classList.add(`inline-status--${type}`);
+  }
+
+  async function openToolbar(sectionId) {
+    try {
+      await sendRuntimeMessage({ action: 'openToolbar', sectionId });
+      window.close();
+    } catch (error) {
+      showStatus(error.message, 'error');
+    }
   }
 });
 

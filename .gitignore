@@ -1,3 +1,7 @@
 .DS_Store
 Thumbs.db
 *.log
+.agents/
+.claude/
+ORIGINAL_REQUEST.md
+PROJECT.md

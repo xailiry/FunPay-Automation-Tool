@@ -41,6 +41,10 @@
       this.view.mount();
       this.render();
       void this.loadOrders(false);
+      void this.refreshBumpAvailability();
+      window.setInterval(() => {
+        void this.refreshBumpAvailability();
+      }, 60_000);
     }
 
     async loadOrders(forceRefresh) {
@@ -205,6 +209,16 @@
         });
       } finally {
         this.view.setBumpState(false);
+        await this.refreshBumpAvailability();
+      }
+    }
+
+    async refreshBumpAvailability() {
+      try {
+        const state = await this.client.getExtensionState();
+        this.view.setBumpAvailability(state.nextBumpAvailableAt);
+      } catch {
+        // The button remains usable even if the background state is unavailable.
       }
     }
 

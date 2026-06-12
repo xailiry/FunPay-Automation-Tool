@@ -120,6 +120,42 @@ test('removes a restored cache entry without calling FunPay', async () => {
   assert.equal(messages.at(-1).message, 'Локальная запись убрана.');
 });
 
+test('refreshes bump availability after a cooldown attempt', async () => {
+  const view = createView([]);
+  let renderedResult;
+  let availability;
+  view.hideBanner = () => {};
+  view.setBumpState = () => {};
+  view.showBumpBanner = (result) => {
+    renderedResult = result;
+  };
+  view.setBumpAvailability = (timestamp) => {
+    availability = timestamp;
+  };
+  const controller = new SellerDashboardController({
+    profile: createProfile(createOffer()),
+    view,
+    client: {
+      async triggerBump() {
+        return {
+          status: 'completed',
+          successCount: 0,
+          skippedCount: 1,
+          failedCount: 0
+        };
+      },
+      async getExtensionState() {
+        return { nextBumpAvailableAt: 12345 };
+      }
+    }
+  });
+
+  await controller.triggerBump();
+
+  assert.equal(renderedResult.skippedCount, 1);
+  assert.equal(availability, 12345);
+});
+
 function createOffer() {
   return {
     offerId: '69880658',

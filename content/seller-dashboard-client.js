@@ -145,6 +145,16 @@
       return response.result;
     }
 
+    async getExtensionState() {
+      const response = await this.messenger({ action: 'getExtensionState' });
+      if (!response?.ok) {
+        throw new Error(
+          response?.error || 'Не удалось получить состояние расширения'
+        );
+      }
+      return response;
+    }
+
     async loadOfferForm({ offerId, nodeId }) {
       const response = await this.requestPage({
         url: new URL(

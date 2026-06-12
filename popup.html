@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FunPay Automation Tool</title>
   <link rel="stylesheet" href="popup.css">
-  <link rel="stylesheet" href="user-guide.css">
 </head>
 <body>
   <header class="app-header">
@@ -18,6 +17,10 @@
   </header>
 
   <main>
+    <button class="toolbar-open-button" id="open-toolbar" type="button">
+      Открыть центр управления
+    </button>
+
     <section class="card">
       <div class="control-row">
         <div class="control-copy">
@@ -33,6 +36,9 @@
       <button class="primary-button" id="bump-now-button" type="button">
         Поднять сейчас
       </button>
+      <p class="bump-countdown" id="bump-countdown">
+        Можно поднять сейчас
+      </p>
 
       <div class="inline-status" id="inline-status" role="status" aria-live="polite"></div>
     </section>
@@ -70,7 +76,7 @@
     </section>
   </main>
 
-  <script src="user-guide.js"></script>
+  <script src="bump-countdown.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
