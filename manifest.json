@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FunPay Automation Tool",
-  "version": "3.0.0",
-  "version_name": "3.0 Preview 1",
+  "version": "3.0.1",
+  "version_name": "3.0 Preview 1 Hotfix 1",
   "description": "Центр управления продавца: объявления, сообщения, мультипостинг, темы и автоматизация FunPay.",
   "permissions": [
     "storage",
@@ -25,7 +25,10 @@
         "https://funpay.com/*",
         "https://*.funpay.com/*"
       ],
-      "js": ["toolbar/theme-bootstrap.js"],
+      "js": [
+        "toolbar/theme-bootstrap.js",
+        "content/shared.js"
+      ],
       "css": [],
       "run_at": "document_start"
     },
@@ -35,7 +38,6 @@
         "https://*.funpay.com/*"
       ],
       "js": [
-        "content/shared.js",
         "content/category-catalog.js",
         "multipost-presets.js",
         "bump-countdown.js",

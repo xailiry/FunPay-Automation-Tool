@@ -29,6 +29,19 @@ for (const asset of referencedAssets) {
   }
 }
 
+const sharedRuntimeEntries = manifest.content_scripts.filter((script) =>
+  script.js.includes('content/shared.js')
+);
+
+if (
+  sharedRuntimeEntries.length !== 1 ||
+  sharedRuntimeEntries[0].run_at !== 'document_start'
+) {
+  throw new Error(
+    'content/shared.js must be loaded exactly once at document_start.'
+  );
+}
+
 console.log(`Checked ${javascriptFiles.length} JavaScript files.`);
 console.log('Manifest and referenced assets are valid.');
 
