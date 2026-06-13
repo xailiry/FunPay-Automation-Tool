@@ -176,19 +176,31 @@ FunPay Automation больше не является набором разроз
 
 ```mermaid
 flowchart LR
-  Popup["Popup"] --> Worker["Service worker"]
   Header["Навигация FunPay"] --> Toolbar["Центр управления"]
-  Popup --> Toolbar
-  Toolbar --> Storage["chrome.storage.local"]
+  Popup["Popup"] --> Toolbar
+  Popup --> Worker["Service worker"]
   Toolbar --> Worker
+  Toolbar --> Storage["chrome.storage.local"]
+
   Profile["Профиль продавца"] --> Dashboard["Seller Dashboard"]
-  Editor["Форма объявления"] --> Multipost["Multipost"]
-  Chat["Чат и заказы"] --> ChatManager["Chat Manager"]
-  Orders["Продажи"] --> Scenarios["Order Scenarios"]
   Dashboard --> Worker
+  Dashboard --> Storage
+
+  Editor["Форма объявления"] --> Multipost["Multipost"]
+  Editor --> BuyerPrice["Buyer Price"]
   Multipost --> Worker
+  BuyerPrice --> FunPay["FunPay"]
+
+  Chat["Чат и заказы"] --> ChatManager["Chat Manager"]
+  ChatManager --> Storage
+  ChatManager --> Toolbar
+  ChatManager --> FunPay
+
+  Scenarios["Order Scenarios · фоновый опрос /orders/trade"] --> Storage
+  Scenarios --> FunPay
+
   Worker --> Main["MAIN-контекст FunPay"]
-  Main --> FunPay["FunPay"]
+  Main --> FunPay
 ```
 
 Основные модули:
