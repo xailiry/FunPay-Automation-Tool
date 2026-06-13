@@ -17,6 +17,15 @@ export function classifyRaiseResponse(nodeId, response) {
     };
   }
 
+  // A category-selection modal is not a completed raise — never treat it as one.
+  if (typeof data.modal === 'string' && data.modal.trim()) {
+    return {
+      nodeId,
+      status: 'failed',
+      message: 'Требуется выбор категорий для поднятия'
+    };
+  }
+
   const errorMessage = extractResponseMessage(data);
   const explicitlyFailed =
     data.success === false ||

@@ -1,6 +1,7 @@
 import {
   extractGameId,
   extractNodeIds,
+  extractRaiseModalNodeIds,
   extractUserId
 } from './parsers.js';
 import {
@@ -111,7 +112,36 @@ export class BumpService {
       }
 
       const response = await this.client.raiseCategory(gameId, nodeId);
-      return classifyRaiseResponse(nodeId, response);
+
+      if (!hasRaiseModal(response.json)) {
+        return classifyRaiseResponse(nodeId, response);
+      }
+
+      // FunPay asked which categories to raise. Confirm exactly the ones it
+      // pre-checked (the current category by default) so the offers actually
+      // get raised instead of silently looping on the modal.
+      const checked = extractRaiseModalNodeIds(response.json.modal);
+      const confirmed = await this.client.raiseCategory(
+        gameId,
+        nodeId,
+        checked.length > 0 ? checked : [nodeId]
+      );
+
+      if (hasRaiseModal(confirmed.json)) {
+        return {
+          nodeId,
+          status: 'failed',
+          message: 'FunPay снова запросил выбор категорий'
+        };
+      }
+
+      const classified = classifyRaiseResponse(nodeId, confirmed);
+      // After confirming the modal a cooldown answer means the raise just
+      // succeeded (the category was raisable a moment ago).
+      if (classified.status === 'skipped') {
+        return { ...classified, status: 'success', message: 'Объявления подняты' };
+      }
+      return classified;
     } catch (error) {
       return {
         nodeId,
@@ -133,6 +163,10 @@ export class BumpService {
 
     await this.notify('Авто-поднятие завершено', parts.join(', '));
   }
+}
+
+function hasRaiseModal(data) {
+  return Boolean(data && typeof data.modal === 'string' && data.modal.trim());
 }
 
 function createRunningState(startedAt) {

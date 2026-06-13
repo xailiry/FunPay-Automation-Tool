@@ -22,10 +22,15 @@ export class FunPayClient {
     return this.request(`${FUNPAY_ORIGIN}/lots/${nodeId}/trade`);
   }
 
-  raiseCategory(gameId, nodeId) {
+  raiseCategory(gameId, nodeId, nodeIds = []) {
     const formData = new FormData();
     formData.set('game_id', gameId);
     formData.set('node_id', nodeId);
+    // When confirming the multi-category modal, FunPay expects the checked
+    // categories as repeated node_ids[] fields.
+    for (const id of nodeIds) {
+      formData.append('node_ids[]', id);
+    }
 
     return this.request(`${FUNPAY_ORIGIN}/lots/raise`, {
       method: 'POST',

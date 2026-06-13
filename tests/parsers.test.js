@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   extractGameId,
   extractNodeIds,
+  extractRaiseModalNodeIds,
   extractUserId
 } from '../background/parsers.js';
 
@@ -25,4 +26,15 @@ test('returns safe empty values when markup does not match', () => {
   assert.equal(extractUserId('<html></html>'), null);
   assert.equal(extractGameId('<html></html>'), null);
   assert.deepEqual(extractNodeIds('<html></html>'), []);
+});
+
+test('extracts only the checked category from a raise confirmation modal', () => {
+  const modal =
+    '<div class="raise-box" data-game="158" data-node="2046">' +
+    '<input type="checkbox" value="453"><i></i>Услуги' +
+    '<input type="checkbox" value="2046" checked><i></i>Прочее</div>';
+
+  assert.deepEqual(extractRaiseModalNodeIds(modal), ['2046']);
+  assert.deepEqual(extractRaiseModalNodeIds(null), []);
+  assert.deepEqual(extractRaiseModalNodeIds(undefined), []);
 });
