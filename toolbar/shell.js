@@ -149,6 +149,7 @@
 
     confirm(title, message, confirmLabel = 'Подтвердить') {
       return new Promise((resolve) => {
+        const shell = this.overlay.querySelector('.fpat-shell');
         const layer = document.createElement('div');
         layer.className = 'fpat-confirm';
         layer.innerHTML = `
@@ -165,6 +166,7 @@
         layer.querySelector('p').textContent = message;
         layer.querySelector('[data-action="confirm"]').textContent = confirmLabel;
         const close = (result) => {
+          shell.classList.remove('is-confirming');
           layer.remove();
           resolve(result);
         };
@@ -175,7 +177,8 @@
         layer.addEventListener('mousedown', (event) => {
           if (event.target === layer) close(false);
         });
-        this.overlay.querySelector('.fpat-shell').append(layer);
+        shell.classList.add('is-confirming');
+        shell.append(layer);
         layer.querySelector('[data-action="cancel"]').focus();
       });
     }

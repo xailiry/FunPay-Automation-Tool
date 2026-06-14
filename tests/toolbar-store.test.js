@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 globalThis.FunPayAutomationToolbar = {};
-await import('../multipost-presets.js');
+await import('../shared/multipost-presets.js');
 await import('../toolbar/config.js');
 await import('../toolbar/store.js');
 

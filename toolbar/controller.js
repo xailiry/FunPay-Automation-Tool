@@ -16,7 +16,14 @@
     async initialize() {
       const settings = await this.store.load();
       namespace.Theme.apply(settings.appearance);
+      // Re-apply the page theme only when the appearance actually changes.
+      // Re-applying on every settings write (e.g. toggling an order scenario)
+      // repaints the page background/skin and makes tall toolbar sections flash.
+      let lastAppearance = JSON.stringify(settings.appearance);
       this.store.subscribe((nextSettings) => {
+        const nextAppearance = JSON.stringify(nextSettings.appearance);
+        if (nextAppearance === lastAppearance) return;
+        lastAppearance = nextAppearance;
         namespace.Theme.apply(nextSettings.appearance);
       });
       this.injectNavigationButton();

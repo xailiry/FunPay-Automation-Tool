@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-await import('../bump-countdown.js');
+await import('../shared/bump-countdown.js');
 
 const { format } = globalThis.FunPayBumpCountdown;
 const MINUTE = 60 * 1000;

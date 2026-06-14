@@ -1,8 +1,8 @@
-import { BumpService } from './background/bump-service.js';
-import { AutoBumpScheduler } from './background/auto-bump-scheduler.js';
-import { PageRequestLoader } from './background/page-request-loader.js';
-import { FunPayClient } from './background/funpay-client.js';
-import { normalizeStoredBumpResult } from './background/results.js';
+import { BumpService } from './bump-service.js';
+import { AutoBumpScheduler } from './auto-bump-scheduler.js';
+import { PageRequestLoader } from './page-request-loader.js';
+import { FunPayClient } from './funpay-client.js';
+import { normalizeStoredBumpResult } from './results.js';
 
 const storage = chrome.storage.local;
 const funPayClient = new FunPayClient();
@@ -184,7 +184,7 @@ function logSchedulerError(error) {
 function createNotification(title, message) {
   return chrome.notifications.create({
     type: 'basic',
-    iconUrl: 'icon-128.png',
+    iconUrl: chrome.runtime.getURL('assets/icons/icon-128.png'),
     title,
     message
   });

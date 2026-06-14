@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootPath = fileURLToPath(new URL('../', import.meta.url));
@@ -26,6 +26,22 @@ const referencedAssets = [
 for (const asset of referencedAssets) {
   if (!existsSync(join(rootPath, asset))) {
     throw new Error(`Manifest references missing asset: ${asset}`);
+  }
+}
+
+const popupPath = join(rootPath, manifest.action.default_popup);
+const popupHtml = readFileSync(popupPath, 'utf8');
+const popupDirectory = dirname(popupPath);
+const popupAssets = [
+  ...popupHtml.matchAll(/(?:href|src)=["']([^"']+)["']/g)
+]
+  .map((match) => match[1])
+  .filter((asset) => !/^(?:[a-z]+:|#)/i.test(asset));
+
+for (const asset of popupAssets) {
+  const path = normalize(join(popupDirectory, asset));
+  if (!existsSync(path)) {
+    throw new Error(`Popup references missing asset: ${asset}`);
   }
 }
 

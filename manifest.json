@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FunPay Automation Tool",
-  "version": "3.0.1",
-  "version_name": "3.0 Preview 1 Hotfix 1",
+  "version": "3.1.0",
+  "version_name": "3.1 Stable",
   "description": "Центр управления продавца: объявления, сообщения, мультипостинг, темы и автоматизация FunPay.",
   "permissions": [
     "storage",
@@ -16,7 +16,7 @@
     "https://*.funpay.com/*"
   ],
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "background/service-worker.js",
     "type": "module"
   },
   "content_scripts": [
@@ -39,8 +39,8 @@
       ],
       "js": [
         "content/category-catalog.js",
-        "multipost-presets.js",
-        "bump-countdown.js",
+        "shared/multipost-presets.js",
+        "shared/bump-countdown.js",
         "toolbar/config.js",
         "toolbar/store.js",
         "toolbar/theme.js",
@@ -76,9 +76,9 @@
         "content/multipost-controller.js",
         "content/buyer-price-core.js",
         "content/buyer-price.js",
-        "content.js"
+        "content/offer-entry.js"
       ],
-      "css": ["content.css"],
+      "css": ["content/offer.css"],
       "run_at": "document_idle"
     },
     {
@@ -94,9 +94,9 @@
         "content/chat-manager-context.js",
         "content/chat-manager-view.js",
         "content/chat-manager-controller.js",
-        "chat-manager.js"
+        "content/chat-manager-entry.js"
       ],
-      "css": ["chat-manager.css"],
+      "css": ["content/chat-manager.css"],
       "run_at": "document_idle"
     },
     {
@@ -111,9 +111,9 @@
         "content/seller-dashboard-elements.js",
         "content/seller-dashboard-view.js",
         "content/seller-dashboard-controller.js",
-        "seller-dashboard.js"
+        "content/seller-dashboard-entry.js"
       ],
-      "css": ["seller-dashboard.css"],
+      "css": ["content/seller-dashboard.css"],
       "run_at": "document_idle"
     },
     {
@@ -123,20 +123,22 @@
       ],
       "js": [
         "content/order-scenarios-core.js",
-        "content/order-scenarios.js"
+        "content/order-scenarios.js",
+        "content/review-responder-core.js",
+        "content/review-responder.js"
       ],
       "css": [],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "popup/index.html",
     "default_title": "FunPay Automation Tool"
   },
   "icons": {
-    "16": "icon-16.png",
-    "32": "icon-32.png",
-    "48": "icon-48.png",
-    "128": "icon-128.png"
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
   }
 }

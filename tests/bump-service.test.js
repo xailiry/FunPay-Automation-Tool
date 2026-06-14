@@ -56,14 +56,15 @@ test('runs one bump operation at a time and stores its result', async () => {
   assert.equal(notifications.length, 1);
 });
 
-test('confirms the FunPay category modal and raises instead of looping', async () => {
+test('confirms the modal, raises every game category and does not loop', async () => {
   const raiseCalls = [];
   const client = {
     async getHomePage() {
       return { text: '<a href="/users/10/">User</a>' };
     },
     async getProfilePage() {
-      return { text: '<a href="/lots/2046/">Category</a>' };
+      // Two categories of one game (158): 2046 and 453.
+      return { text: '<a href="/lots/2046/">A</a><a href="/lots/453/">B</a>' };
     },
     async getCategoryPage() {
       return { text: '<div data-game="158"></div>' };
@@ -93,11 +94,13 @@ test('confirms the FunPay category modal and raises instead of looping', async (
 
   const result = await service.run();
 
-  assert.equal(result.successCount, 1);
+  // Both categories count as raised, neither as a cooldown.
+  assert.equal(result.successCount, 2);
   assert.equal(result.skippedCount, 0);
   assert.equal(result.failedCount, 0);
+  // First node opens the modal then confirms ALL its categories as node_ids[];
+  // the sibling (453) is deduped, so no extra raise call is made for it.
   assert.equal(raiseCalls.length, 2);
   assert.deepEqual(raiseCalls[0].nodeIds, []);
-  // Only the pre-checked category is confirmed, as node_ids[].
-  assert.deepEqual(raiseCalls[1].nodeIds, ['2046']);
+  assert.deepEqual(raiseCalls[1].nodeIds, ['453', '2046']);
 });

@@ -28,13 +28,14 @@ test('returns safe empty values when markup does not match', () => {
   assert.deepEqual(extractNodeIds('<html></html>'), []);
 });
 
-test('extracts only the checked category from a raise confirmation modal', () => {
+test('extracts every category from a raise confirmation modal', () => {
   const modal =
     '<div class="raise-box" data-game="158" data-node="2046">' +
     '<input type="checkbox" value="453"><i></i>Услуги' +
-    '<input type="checkbox" value="2046" checked><i></i>Прочее</div>';
+    '<input type="checkbox" value="2046" checked><i></i>Прочее' +
+    '<input type="checkbox" value="453"></div>';
 
-  assert.deepEqual(extractRaiseModalNodeIds(modal), ['2046']);
+  assert.deepEqual(extractRaiseModalNodeIds(modal), ['453', '2046']);
   assert.deepEqual(extractRaiseModalNodeIds(null), []);
   assert.deepEqual(extractRaiseModalNodeIds(undefined), []);
 });

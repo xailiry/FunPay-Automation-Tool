@@ -59,8 +59,76 @@
       reviewMessage.field
     );
 
-    section.append(payment.card, review.card, note());
+    const reply = scenarioCard({
+      icon: icon('reply'),
+      title: 'Авто-ответ на отзывы',
+      description: 'Ответ продавца на новые отзывы — по шаблону, можно отдельно по оценкам.',
+      enabled: settings.reviewReplyEnabled
+    });
+    const replyEnabled = C.checkbox('Отвечать на новые отзывы', settings.reviewReplyEnabled);
+    const replyDelay = C.number(settings.reviewReplyDelayMinutes, { min: 0, max: 1440 });
+    const replyMessage = composer(
+      settings.reviewReplyTemplate,
+      'Общий ответ на отзыв. Например: спасибо за отзыв.'
+    );
+    replyMessage.field.querySelector('.fpat-field__label').textContent = 'Общий ответ';
+    replyMessage.field.querySelector('small').textContent =
+      'Используется для оценок, у которых отдельный ответ ниже оставлен пустым. Переменные подставятся перед отправкой.';
+    replyEnabled.input.addEventListener('change', async () => {
+      if (!replyEnabled.input.checked) {
+        await context.store.update('orders.reviewReplyEnabled', false);
+        reply.setState(false);
+        return;
+      }
+
+      const confirmed = await context.shell.confirm(
+        'Включить авто-ответы на отзывы?',
+        'Перепроверьте общий ответ и шаблоны для каждой оценки. После включения расширение в ближайшие минуты ответит на все отзывы без вашего ответа, включая старые. Отменить уже отправленные ответы будет нельзя.',
+        'Включить авто-ответы'
+      );
+
+      if (!confirmed) {
+        replyEnabled.input.checked = false;
+        reply.setState(false);
+        return;
+      }
+
+      await context.store.update('orders.reviewReplyEnabled', true);
+      reply.setState(true);
+    });
+    bind(replyDelay, 'reviewReplyDelayMinutes', Number);
+    bindText(replyMessage.textarea, 'reviewReplyTemplate');
+    reply.body.append(
+      replyEnabled.wrapper,
+      C.field('Задержка перед ответом, минут', replyDelay),
+      replyMessage.field,
+      starOverrides()
+    );
+
+    section.append(payment.card, review.card, reply.card, note());
     return section;
+
+    function starOverrides() {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'fpat-field fpat-field--wide';
+      const label = document.createElement('span');
+      label.className = 'fpat-field__label';
+      label.textContent = 'Отдельные ответы по оценкам (необязательно)';
+      const hint = document.createElement('small');
+      hint.textContent = 'Пустое поле — будет использован общий ответ.';
+      let activeInput = null;
+      wrapper.append(label, hint, variableBar(() => activeInput, 'в активное поле'));
+      for (const star of ['1', '2', '3', '4', '5']) {
+        const input = C.text(settings.reviewReplyStars?.[star] || '', `Ответ на ${star}★`);
+        activeInput ||= input;
+        input.addEventListener('focus', () => { activeInput = input; });
+        input.addEventListener('change', () =>
+          context.store.update(`orders.reviewReplyStars.${star}`, input.value)
+        );
+        wrapper.append(C.field(`${'★'.repeat(Number(star))} (${star})`, input));
+      }
+      return wrapper;
+    }
 
     function bind(control, key, cast) {
       control.addEventListener('change', () =>
@@ -120,18 +188,28 @@
     return { field, textarea };
   }
 
-  function variableBar(textarea) {
+  // target is a field, or a function returning the field to insert into (used
+  // for the shared bar over the per-rating inputs).
+  function variableBar(target, suffix = '') {
+    const getTarget = typeof target === 'function' ? target : () => target;
     const bar = document.createElement('div');
     bar.className = 'fpat-message-variables';
     const label = document.createElement('span');
-    label.textContent = 'Вставить переменную:';
+    label.textContent = suffix
+      ? `Вставить переменную ${suffix}:`
+      : 'Вставить переменную:';
     bar.append(label);
     for (const [token, title] of VARIABLES) {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = token;
       button.title = title;
-      button.addEventListener('click', () => insertAtCursor(textarea, token));
+      // Keep the cursor in the field so the token lands at the right spot.
+      button.addEventListener('mousedown', (event) => event.preventDefault());
+      button.addEventListener('click', () => {
+        const field = getTarget();
+        if (field) insertAtCursor(field, token);
+      });
       bar.append(button);
     }
     return bar;
@@ -180,14 +258,15 @@
     const node = document.createElement('div');
     node.className = 'fpat-note';
     node.textContent =
-      'Сообщения отправляются автоматически, пока открыта вкладка FunPay. Каждому заказу — не больше одного сообщения на сценарий; заказы, оформленные до включения, не затрагиваются.';
+      'Всё работает автоматически, пока открыта вкладка FunPay. Сообщения по заказам уходят только на заказы, появившиеся после включения. Авто-ответ на отзывы отвечает на все отзывы без вашего ответа (включая старые); на каждый отзыв — один ответ, ваши ручные ответы не перезаписываются.';
     return node;
   }
 
   function icon(name) {
     const paths = {
       receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/>',
-      star: '<path d="M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 9.7l5.4-.8z"/>'
+      star: '<path d="M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 9.7l5.4-.8z"/>',
+      reply: '<path d="M9 14 4 9l5-5M4 9h9a7 7 0 0 1 7 7v4"/>'
     };
     return `<svg viewBox="0 0 24 24">${paths[name] || ''}</svg>`;
   }

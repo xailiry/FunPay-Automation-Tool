@@ -131,6 +131,9 @@
       ...settings,
       preset: presetId,
       ...(PRESETS[presetId] || PRESETS.standard),
+      // Density is a separate, user-controlled setting — picking a colour preset
+      // must not reset it.
+      density: settings.density,
       customBg: '',
       customSurface: '',
       customText: ''

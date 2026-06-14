@@ -49,9 +49,28 @@ export class BumpService {
     try {
       const nodeIds = await this.getActiveNodeIds();
       const results = [];
+      // Categories of the same game share one cooldown and are raised together
+      // through the modal; remember the siblings so the loop doesn't report them
+      // as a cooldown.
+      const raisedTogether = new Set();
 
       for (let index = 0; index < nodeIds.length; index += 1) {
-        results.push(await this.raiseNode(nodeIds[index]));
+        const nodeId = nodeIds[index];
+
+        if (raisedTogether.has(nodeId)) {
+          results.push({
+            nodeId,
+            status: 'success',
+            message: 'Поднято вместе с другой категорией'
+          });
+          continue;
+        }
+
+        const { result, coRaised } = await this.raiseNode(nodeId);
+        results.push(result);
+        for (const id of coRaised) {
+          if (id !== nodeId) raisedTogether.add(id);
+        }
 
         if (index < nodeIds.length - 1) {
           await this.wait(REQUEST_DELAY_MS);
@@ -98,6 +117,8 @@ export class BumpService {
     return nodeIds;
   }
 
+  // Returns { result, coRaised } where coRaised lists every category raised by
+  // this call (the whole game, when FunPay shows the multi-category modal).
   async raiseNode(nodeId) {
     try {
       const categoryPage = await this.client.getCategoryPage(nodeId);
@@ -105,48 +126,41 @@ export class BumpService {
 
       if (!gameId) {
         return {
-          nodeId,
-          status: 'failed',
-          message: 'Не найден game_id категории'
+          result: { nodeId, status: 'failed', message: 'Не найден game_id категории' },
+          coRaised: []
         };
       }
 
       const response = await this.client.raiseCategory(gameId, nodeId);
+      const modalNodeIds = extractRaiseModalNodeIds(response.json?.modal);
 
-      if (!hasRaiseModal(response.json)) {
-        return classifyRaiseResponse(nodeId, response);
+      if (modalNodeIds.length === 0) {
+        return { result: classifyRaiseResponse(nodeId, response), coRaised: [] };
       }
 
-      // FunPay asked which categories to raise. Confirm exactly the ones it
-      // pre-checked (the current category by default) so the offers actually
-      // get raised instead of silently looping on the modal.
-      const checked = extractRaiseModalNodeIds(response.json.modal);
-      const confirmed = await this.client.raiseCategory(
-        gameId,
-        nodeId,
-        checked.length > 0 ? checked : [nodeId]
-      );
+      // FunPay asked which categories to raise. Confirm them all so every
+      // category of this game is raised at once, instead of leaving siblings
+      // unraised but on cooldown.
+      const confirmed = await this.client.raiseCategory(gameId, nodeId, modalNodeIds);
 
       if (hasRaiseModal(confirmed.json)) {
         return {
-          nodeId,
-          status: 'failed',
-          message: 'FunPay снова запросил выбор категорий'
+          result: { nodeId, status: 'failed', message: 'FunPay снова запросил выбор категорий' },
+          coRaised: []
         };
       }
 
       const classified = classifyRaiseResponse(nodeId, confirmed);
       // After confirming the modal a cooldown answer means the raise just
-      // succeeded (the category was raisable a moment ago).
-      if (classified.status === 'skipped') {
-        return { ...classified, status: 'success', message: 'Объявления подняты' };
-      }
-      return classified;
+      // succeeded (the categories were raisable a moment ago).
+      const result = classified.status === 'skipped'
+        ? { ...classified, status: 'success', message: 'Объявления подняты' }
+        : classified;
+      return { result, coRaised: modalNodeIds };
     } catch (error) {
       return {
-        nodeId,
-        status: 'failed',
-        message: getErrorMessage(error)
+        result: { nodeId, status: 'failed', message: getErrorMessage(error) },
+        coRaised: []
       };
     }
   }

@@ -51,7 +51,11 @@
         reviewRequestEnabled: false,
         reviewDelayHours: 2,
         reviewMessage:
-          'Спасибо за покупку! Будем благодарны за отзыв о заказе #{order} - это очень помогает магазину.'
+          'Спасибо за покупку! Будем благодарны за отзыв о заказе #{order} - это очень помогает магазину.',
+        reviewReplyEnabled: false,
+        reviewReplyDelayMinutes: 0,
+        reviewReplyTemplate: 'Спасибо за отзыв, {buyername}! Рады, что всё понравилось.',
+        reviewReplyStars: { '1': '', '2': '', '3': '', '4': '', '5': '' }
       },
       appearance: {
         preset: 'standard',

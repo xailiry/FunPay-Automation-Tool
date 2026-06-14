@@ -269,6 +269,9 @@
       background: var(--bg);
       scrollbar-width: thin;
       scrollbar-color: var(--border) transparent;
+      /* Own GPU layer: prevents tall scrolled content from blanking out white
+         when the toolbar overlays a page that uses backdrop-filter. */
+      transform: translateZ(0);
     }
     .fpat-section { max-width: 980px; margin: 0 auto; }
     .fpat-section-header { margin-bottom: 22px; }
@@ -1848,11 +1851,17 @@
     .fpat-confirm {
       position: absolute;
       z-index: 4;
-      inset: 0;
+      inset: -1px;
       display: grid;
       padding: 20px;
       place-items: center;
+      border-radius: inherit;
       background: rgba(16, 20, 23, .55);
+    }
+    .fpat-shell.is-confirming {
+      border-color: transparent;
+      background-clip: padding-box;
+      outline: 0;
     }
     .fpat-confirm__dialog {
       width: min(430px, 100%);

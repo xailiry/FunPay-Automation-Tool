@@ -77,8 +77,9 @@
       ['standard', 'Стандартная'],
       ['compact', 'Компактная']
     ], async (value) => {
+      // Density is independent of the colour preset — changing it must not drop
+      // the selected theme's palette (graphite/night) to the generic one.
       settings.density = value;
-      settings.preset = 'custom';
       await context.store.replaceSection('appearance', settings);
       namespace.Theme.apply(settings);
       context.rerender();

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-await import('../multipost-presets.js');
+await import('../shared/multipost-presets.js');
 
 globalThis.FunPayAutomation = {
   Config: {
